@@ -109,9 +109,9 @@ export function Controller(
 
         return methods;
       }
-      handleRequestuest = async (Requestuest: any) => {
+      handleRequest = async (Requestuest: any) => {
         const method = Requestuest.method;
-        const path = (Requestuest.path || Requestuest.pathname || '').replace(/^\/+/, '');
+        const path = (Requestuest.url.path || Requestuest.url.pathname || '').replace(/^\/+/, '');
 
         const routePrefix: string = Reflect.getMetadata('routePrefix', proto) || '';
         const middlewares: Array<(Request: any) => any> =

@@ -5,7 +5,7 @@ type P_Q = Record<string, string | undefined> | null | unknown;
 
 export type Request<B = unknown, Q extends P_Q = unknown, P extends P_Q = unknown> = {
   method: string;
-  path: string;
+  url: URL;
   headers: IncomingHttpHeaders;
   query: Q;
   params?: P;
@@ -31,3 +31,5 @@ export type AxiosQuery = {
 export interface IController {
   handleRequest: Router;
 }
+
+export type Middleware = (req: Request) => Promise<Request> | Request;

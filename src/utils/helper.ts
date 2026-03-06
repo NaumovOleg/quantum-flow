@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Req } from "@notifications-types";
-import * as multipart from "parse-multipart-data";
+import { Request } from '@types';
+import * as multipart from 'parse-multipart-data';
 
 export const matchRoute = (routePattern: string, actualPath: string) => {
-  const routeParts = routePattern.split("/").filter(Boolean);
-  const pathParts = actualPath.split("/").filter(Boolean);
+  const routeParts = routePattern.split('/').filter(Boolean);
+  const pathParts = actualPath.split('/').filter(Boolean);
 
   if (routeParts.length !== pathParts.length) return null;
 
@@ -14,7 +14,7 @@ export const matchRoute = (routePattern: string, actualPath: string) => {
     const routePart = routeParts[i];
     const pathPart = pathParts[i];
 
-    if (routePart.startsWith(":")) {
+    if (routePart.startsWith(':')) {
       const paramName = routePart.slice(1);
       params[paramName] = decodeURIComponent(pathPart);
     } else if (routePart !== pathPart) {
@@ -24,15 +24,15 @@ export const matchRoute = (routePattern: string, actualPath: string) => {
 
   return params;
 };
-export const ParseBody = (request: Req<any, any, any>) => {
+export const ParseBody = (request: Request<any, any, any>) => {
   const { body, headers, isBase64Encoded } = request;
   let parsedBody: any = null;
 
-  let contentType = headers["content-type"] ?? headers["Content-Type"] ?? "";
+  let contentType = headers['content-type'] ?? headers['Content-Type'] ?? '';
   if (Array.isArray(contentType)) {
     contentType = contentType[0];
   }
-  if (!contentType.startsWith("multipart/form-data")) {
+  if (!contentType.startsWith('multipart/form-data')) {
     try {
       return JSON.parse(body);
     } catch (_) {
@@ -45,14 +45,12 @@ export const ParseBody = (request: Req<any, any, any>) => {
   if (!body || !boundaryMatch) {
     return {
       statusCode: 400,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: "Invalid multipart request" }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'Invalid multipart request' }),
     };
   }
 
-  const bodyBuffer = isBase64Encoded
-    ? Buffer.from(body, "base64")
-    : Buffer.from(body, "binary");
+  const bodyBuffer = isBase64Encoded ? Buffer.from(body, 'base64') : Buffer.from(body, 'binary');
 
   const parts = multipart.parse(bodyBuffer, boundaryMatch);
 
@@ -64,7 +62,7 @@ export const ParseBody = (request: Req<any, any, any>) => {
         data: part.data,
       };
     } else if (part.name) {
-      const text = part.data.toString("utf-8").trim();
+      const text = part.data.toString('utf-8').trim();
       try {
         acc[part.name] = JSON.parse(text);
       } catch {

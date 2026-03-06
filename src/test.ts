@@ -1,4 +1,60 @@
-import { Controller } from '@controllers';
+import { Controller, GET } from '@controllers';
+import { Request } from '@types';
+import http from 'http';
+import { URL } from 'url';
+
+const auth = (req: Request) => {
+  console.log('------', req);
+  return req;
+};
 
 @Controller('base')
-export class Controllera {}
+export class Controllera {
+  @GET('/:nane', [auth])
+  async test() {}
+}
+
+const ctr = new Controllera();
+
+const PORT = 3000;
+
+const server = http.createServer(async (req, res) => {
+  if (!req.url || !req.method) {
+    res.statusCode = 400;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({ error: 'Bad Request' }));
+    return;
+  }
+
+  const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
+
+  let body = '';
+  if (['PUT', 'POST', 'PATCH', 'DELETE'].includes(req.method.toUpperCase())) {
+    for await (const chunk of req) {
+      body += chunk;
+    }
+  }
+
+  try {
+    const response = await (ctr as any).handleRequest({
+      method: req.method,
+      url: parsedUrl,
+      body,
+      headers: req.headers,
+    });
+
+    res.statusCode = response.statusCode ?? 200;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify(response.data ? response.data : { ...response }));
+  } catch (error: any) {
+    res.statusCode = error.statusCode ?? 500;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({ error: error.message ?? 'Internal Server Error' }));
+  }
+});
+
+const HOST = 'localhost';
+
+server.listen(PORT, HOST, () => {
+  console.log(`Server running at http://${HOST}:${PORT}/`);
+});
