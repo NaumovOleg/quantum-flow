@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import 'reflect-metadata';
 
-import { matchRoute } from '../utils/helper';
+import { matchRoute, ParseBody, Query } from '@utils';
 
 type ControllerClass = { new (...args: any[]): any };
 type ControllerInstance = InstanceType<ControllerClass>;
@@ -109,22 +109,21 @@ export function Controller(
 
         return methods;
       }
-      handleRequest = async (Requestuest: any) => {
-        const method = Requestuest.method;
-        const path = (Requestuest.url.path || Requestuest.url.pathname || '').replace(/^\/+/, '');
+      handleRequest = async (request: any) => {
+        const method = request.method;
+        const path = (request.url.path || request.url.pathname || '').replace(/^\/+/, '');
+
+        try {
+          request.body = ParseBody(request);
+          request.query = Query(request.url);
+        } catch (err) {
+          throw { statusCode: 500, message: 'Validation failed', data: err };
+        }
 
         const routePrefix: string = Reflect.getMetadata('routePrefix', proto) || '';
         const middlewares: Array<(Request: any) => any> =
           Reflect.getMetadata('middlewares', proto) || [];
         const subControllers: ControllerClass[] = Reflect.getMetadata('controllers', proto) || [];
-
-        // Run prevalidation
-        const prevalidate = Reflect.getMetadata('prevalidate', proto);
-        try {
-          await prevalidate?.(Requestuest);
-        } catch (err) {
-          return err;
-        }
 
         // Try sub-controllers
         for (const SubController of subControllers) {
@@ -148,7 +147,7 @@ export function Controller(
 
               const pathParams = matchRoute(fullPattern, path);
               if (pathParams) {
-                const payload = { ...Requestuest, params: pathParams };
+                let payload = { ...request, params: pathParams };
 
                 // Apply all middlewares in order: main controller -> sub-controller -> method
                 for (const middleware of [
@@ -156,7 +155,8 @@ export function Controller(
                   ...controllerMiddlewares,
                   ...(methodInfo.middlewares || []),
                 ]) {
-                  await middleware(payload);
+                  const middlawareResponde = await middleware(payload);
+                  payload = { ...payload, ...middlawareResponde };
                 }
 
                 return this.executeControllerMethod(controllerInstance, methodInfo.name, payload);
@@ -166,12 +166,13 @@ export function Controller(
         }
         // Try main controller methods first
         const propertyNames = Object.getOwnPropertyNames(proto);
+
         for (const propertyName of propertyNames) {
           const fn = (this as any)[propertyName];
           if (typeof fn !== 'function') continue;
 
           const endpointMeta = Reflect.getMetadata('endpoint', proto, propertyName);
-
+          console.log(endpointMeta, method);
           if (endpointMeta) {
             const [httpMethod, routePattern] = endpointMeta;
 
@@ -180,14 +181,15 @@ export function Controller(
                 .filter(Boolean)
                 .join('/')
                 .replace(/\/+/g, '/');
-
+              console.log(endpointMeta);
               const pathParams = matchRoute(fullPattern, path);
               if (pathParams) {
-                const payload = { ...Requestuest, params: pathParams };
+                let payload = { ...request, params: pathParams };
 
                 // Apply controller-level middlewares
                 for (const middleware of middlewares) {
-                  await middleware(payload);
+                  const middlewareResponse = await middleware(payload);
+                  payload = { ...payload, middlewareResponse };
                 }
 
                 return fn.call(this, payload);

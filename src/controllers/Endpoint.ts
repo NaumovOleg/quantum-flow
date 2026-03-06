@@ -2,7 +2,7 @@
 import 'reflect-metadata';
 
 import { Middleware } from '@types';
-import { matchRoute, ParseBody, Query } from '@utils';
+import { matchRoute } from '@utils';
 
 export function Endpoint(method: string, pathPattern?: string, middlewares?: Middleware[]) {
   return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
@@ -28,20 +28,20 @@ export function Endpoint(method: string, pathPattern?: string, middlewares?: Mid
           .replace(/\/+/g, '/');
 
         const params: Record<string, string> = {};
-        if (fullPattern && request.path) {
+
+        if (fullPattern && request.url.path) {
           const path = request.path.replace(/^\/+/, '');
           const pathParams = matchRoute(fullPattern, path);
           if (pathParams) {
             Object.assign(params, pathParams);
           }
         }
-        request.body = ParseBody(request);
-        request.query = Query(request.url);
+
         request.params = { ...request.params, ...params };
 
         for (let index = 0; index < middlewares.length; index++) {
           const middleware = middlewares[index];
-          request = await middleware(request);
+          request = (await middleware(request)) ?? request;
         }
 
         const result = await originalMethod.apply(this, [request]);

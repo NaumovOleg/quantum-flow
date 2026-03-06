@@ -1,51 +1,48 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Request } from '@types';
 import { validate } from 'class-validator';
 
 type ToValidate = 'query' | 'body' | 'params' | 'headers';
 
 export function Validate(param: ToValidate, dtoClass: any) {
-  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
-    const originalMethod = descriptor.value;
+  return function (target: any, propertyKey?: string, descriptor?: PropertyDescriptor): void {
+    // METHOD DECORATOR
+    if (descriptor) {
+      wrapMethod(descriptor, param, dtoClass);
+      return;
+    }
 
-    descriptor.value = async function (...args: any[]) {
-      const value = args[0][param];
+    // CLASS DECORATOR
+    const prototype = target.prototype;
 
-      if (Array.isArray(value)) {
-        const errors = [];
-        for (const item of value) {
-          const itemErrors = await validate(new dtoClass(item), {
-            whitelist: true,
-          });
-          if (itemErrors.length > 0) errors.push(itemErrors);
-        }
-        if (errors.length > 0)
-          throw { statusCode: 422, message: 'Validation failed', data: errors };
-      } else {
-        const errors = await validate(new dtoClass(value), { whitelist: true });
-        if (errors.length > 0)
-          throw { statusCode: 422, message: 'Validation failed', data: errors };
-      }
+    Object.getOwnPropertyNames(prototype).forEach((method) => {
+      if (method === 'constructor') return;
 
-      return originalMethod.apply(this, args);
-    };
+      const desc = Object.getOwnPropertyDescriptor(prototype, method);
+      if (!desc || typeof desc.value !== 'function') return;
 
-    return descriptor;
+      wrapMethod(desc, param, dtoClass);
+      Object.defineProperty(prototype, method, desc);
+    });
   };
 }
 
-export function Prevalidate(param: ToValidate, dtoClass: any, defaultStatusCode = 422) {
-  return function (constructor: any) {
-    const prevalidate = async (req: Request) => {
-      const value = req[param];
-      const errors = await validate(new dtoClass(value), { whitelist: false });
-      if (errors.length > 0)
-        throw {
-          statusCode: defaultStatusCode,
-          message: 'Validation failed',
-          data: errors,
-        };
-    };
-    Reflect.defineMetadata('prevalidate', prevalidate, constructor.prototype);
+function wrapMethod(descriptor: PropertyDescriptor, param: any, dtoClass: any) {
+  const originalMethod = descriptor.value;
+
+  descriptor.value = async function (...args: any[]) {
+    const value = args[0][param];
+    const instance = new dtoClass();
+
+    Object.entries(value || {}).forEach(([key, val]) => {
+      instance[key] = val;
+    });
+
+    const errors = await validate(instance, { whitelist: true });
+
+    if (errors.length) {
+      throw { statusCode: 422, message: 'Validation failed', data: errors };
+    }
+
+    return originalMethod.apply(this, args);
   };
 }

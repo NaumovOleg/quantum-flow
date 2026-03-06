@@ -24,6 +24,9 @@
       ],
       "@types": [
         "./src/types/index.ts"
+      ],
+      "@validators": [
+        "./src/validators/index.ts"
       ]
     }
   }

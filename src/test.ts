@@ -1,16 +1,25 @@
-import { Controller, GET } from '@controllers';
+import { Controller, POST } from '@controllers';
 import { Request } from '@types';
+import { Validate } from '@validators';
 import http from 'http';
 import { URL } from 'url';
 
+import { IsString } from 'class-validator';
+
+class DTO {
+  @IsString()
+  name: string;
+}
+
 const auth = (req: Request) => {
-  console.log('------', req);
   return req;
 };
 
 @Controller('base')
+@Validate('body', DTO)
 export class Controllera {
-  @GET('/:nane', [auth])
+  // @Validate('body', DTO)
+  @POST('/:nane', [auth])
   async test() {}
 }
 

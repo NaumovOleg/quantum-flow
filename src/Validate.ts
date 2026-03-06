@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Req } from '@notifications-types';
 import { validate } from 'class-validator';
 
 type ToValidate = 'query' | 'body' | 'params' | 'headers';
@@ -31,21 +30,5 @@ export function Validate(param: ToValidate, dtoClass: any) {
     };
 
     return descriptor;
-  };
-}
-
-export function Prevalidate(param: ToValidate, dtoClass: any, defaultStatusCode = 422) {
-  return function (constructor: any) {
-    const prevalidate = async (req: Req) => {
-      const value = req[param];
-      const errors = await validate(new dtoClass(value), { whitelist: false });
-      if (errors.length > 0)
-        throw {
-          statusCode: defaultStatusCode,
-          message: 'Validation failed',
-          data: errors,
-        };
-    };
-    Reflect.defineMetadata('prevalidate', prevalidate, constructor.prototype);
   };
 }
