@@ -34,7 +34,14 @@ export interface IController {
 
 export type Middleware = (req: Request) => Promise<Request> | Request;
 
-export type ParamDecoratorType = 'body' | 'params' | 'query' | 'request' | 'headers' | 'cookies';
+export type ParamDecoratorType =
+  | 'body'
+  | 'params'
+  | 'query'
+  | 'request'
+  | 'headers'
+  | 'cookies'
+  | 'multipart';
 export interface ParamMetadata {
   index: number;
   type: ParamDecoratorType;

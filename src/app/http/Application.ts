@@ -137,6 +137,8 @@ export class Application {
 
       let processedRequest = await this.applyMiddlewares(request);
       const response = await this.findController(processedRequest);
+
+      console.log(response);
       const finalResponse = await this.applyInterceptors(response, processedRequest);
 
       await this.sendResponse(res, finalResponse, startTime);
@@ -263,7 +265,6 @@ export class Application {
     response: any,
     startTime: number,
   ): Promise<void> {
-    const statusCode = response?.status || 200;
     const data = response?.data !== undefined ? response.data : response;
 
     res.setHeader('Content-Type', 'application/json');

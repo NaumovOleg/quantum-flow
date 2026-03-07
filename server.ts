@@ -1,6 +1,6 @@
-import { Request } from '@types';
-import { Application, Catch, Host, Port, Server, Use } from './src/app/http';
-import { Body, Controller, Query, Status, USE } from './src/controllers';
+import { LambdaAdapter } from './src/app/aws';
+import { Application, Catch, Host, Port, Server } from './src/app/http';
+import { Body, Controller, Headers, Multipart, Query, Status, USE } from './src/controllers';
 
 import { IsString } from 'class-validator';
 
@@ -9,30 +9,21 @@ class DTO {
   name: string;
 }
 
-const auth = (req: Request) => {
-  req.body = 'name';
-
-  return req;
-};
-const auth2 = (resp: any) => {
-  resp = { hello: 'world' };
-
-  return resp;
-};
-
 @Controller({
   prefix: 'base',
-  responseInterceprors: auth2,
-  requestInterceptors: [auth],
-  middlewares: [auth],
 })
 // @Validate('body', DTO)
 export class Controllera {
   // @Validate('body', DTO)
   @Status(300)
-  @USE('/:nane', [auth])
-  async test(@Body() body: any, @Query() query: any) {
-    console.log(query);
+  @USE('/:nane')
+  async test(
+    @Body() body: any,
+    @Query() query: any,
+    @Headers() headers: any,
+    @Multipart() files: any,
+  ) {
+    console.log('========================', { body, files, query });
     throw 'Test';
   }
 }
@@ -42,8 +33,7 @@ export class Controllera {
   controllers: [Controllera],
   responseInterceprors: [
     (resp) => {
-      console.log('base responseInterceprors', resp);
-      return '=-----a-a-a-a-a-a-a-a--a-a-a-a';
+      return resp;
     },
   ],
 })
@@ -54,10 +44,73 @@ class Root {}
 })
 @Port(3000)
 @Host('localhost')
-@Use(auth)
 @Catch((r: any) => {})
 class App {}
 
 const server = new Application(App);
 
-server.listen().catch(console.error);
+// server.listen().catch(console.error);
+
+export const handler = LambdaAdapter.createHandler(Root);
+
+const postEvent = {
+  httpMethod: 'POST',
+  path: '/api/base/qq',
+  headers: {
+    'content-type': 'application/json',
+    authorization: 'Bearer token123',
+  },
+  queryStringParameters: {},
+  pathParameters: {},
+  body: JSON.stringify({
+    name: 'John Doe',
+    email: 'john@example.com',
+    age: 30,
+  }),
+  isBase64Encoded: false,
+  requestContext: {
+    stage: 'dev',
+  },
+} as any;
+
+// 3. POST с multipart/form-data
+const multipartEvent = {
+  httpMethod: 'POST',
+  path: '/api/base/qq',
+  headers: {
+    'content-type': 'multipart/form-data; boundary=---123',
+    authorization: 'Bearer token123',
+  },
+  queryStringParameters: {},
+  pathParameters: {},
+  body: '-----123\r\nContent-Disposition: form-data; name="name"\r\n\r\nJohn\r\n-----123\r\nContent-Disposition: form-data; name="avatar"; filename="photo.jpg"\r\nContent-Type: image/jpeg\r\n\r\n[бинарные данные]\r\n-----123--',
+  isBase64Encoded: false,
+  requestContext: {
+    stage: 'dev',
+  },
+};
+
+const mockContext = {
+  awsRequestId: 'test-123',
+  callbackWaitsForEmptyEventLoop: true,
+  functionName: 'test-function',
+  functionVersion: '$LATEST',
+  invokedFunctionArn: 'arn:aws:lambda:test',
+  memoryLimitInMB: '128',
+  logGroupName: 'test-group',
+  logStreamName: 'test-stream',
+  getRemainingTimeInMillis: () => 5000,
+  done: () => {},
+  fail: () => {},
+  succeed: () => {},
+} as any;
+
+async function testLambda() {
+  const postResponse = await handler(postEvent, mockContext, 's' as any);
+  console.log('LAMBDA RESPONSE postResponse', postResponse);
+}
+
+// Запускаем тест
+testLambda().catch((err) => {
+  console.log('dddddddddddd', err);
+});

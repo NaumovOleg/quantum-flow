@@ -1,7 +1,29 @@
 import { ControllerInstance, Middleware, ParamMetadata } from '@types';
+import { MultipartProcessor } from '@utils';
 import { transformAndValidate } from './transform';
 
 import { ENDPOINT, MIDDLEWARES, PARAM_METADATA_KEY } from '@constants';
+
+const getBodyAndMultipart = (payload: any) => {
+  let body = payload.body;
+  let multipart;
+  if (MultipartProcessor.isMultipart({ headers: payload.headers })) {
+    try {
+      const { fields, files } = MultipartProcessor.parse({
+        body: payload.rawBody || payload.body,
+        headers: payload.headers,
+        isBase64Encoded: payload.isBase64Encoded,
+      });
+      multipart = files;
+      body = fields;
+    } catch (error) {
+      console.error('❌ Multipart parsing error:', error);
+      throw { status: 400, message: 'Invalid multipart data' };
+    }
+  }
+
+  return { multipart, body };
+};
 
 export const executeControllerMethod = async (
   controller: ControllerInstance,
@@ -16,12 +38,11 @@ export const executeControllerMethod = async (
   const methodMiddlewares: Middleware[] =
     Reflect.getMetadata(MIDDLEWARES, controller, propertyName) || [];
 
-  let processedPayload = { ...payload };
   for (let i = 0; i < methodMiddlewares.length; i++) {
     const middleware = methodMiddlewares[i];
-    const result = await middleware(processedPayload);
+    const result = await middleware(payload);
     if (result) {
-      processedPayload = { ...processedPayload, ...result };
+      payload = { ...payload, ...result };
     }
   }
 
@@ -29,8 +50,9 @@ export const executeControllerMethod = async (
   const paramMetadata: ParamMetadata[] =
     Reflect.getMetadata(PARAM_METADATA_KEY, prototype, propertyName) || [];
 
+  const { body, multipart } = getBodyAndMultipart(payload);
   if (paramMetadata.length === 0) {
-    return fn.call(controller, processedPayload);
+    return fn.call(controller, payload);
   }
 
   const args: any[] = [];
@@ -40,24 +62,25 @@ export const executeControllerMethod = async (
 
     switch (param.type) {
       case 'body':
-        value = await transformAndValidate(param.dto, processedPayload.body);
+        value = await transformAndValidate(param.dto, body);
+        break;
+      case 'multipart':
+        value = multipart;
         break;
       case 'params':
-        value = param.name ? processedPayload.params?.[param.name] : processedPayload.params;
+        value = param.name ? payload.params?.[param.name] : payload.params;
         break;
       case 'query':
-        value = param.name ? processedPayload.query?.[param.name] : processedPayload.query;
+        value = param.name ? payload.query?.[param.name] : payload.query;
         break;
       case 'request':
-        value = processedPayload;
+        value = payload;
         break;
-
       case 'headers':
-        value = param.name ? processedPayload.headers?.[param.name] : processedPayload.headers;
+        value = param.name ? payload.headers?.[param.name] : payload.headers;
         break;
-
       case 'cookies':
-        value = param.name ? processedPayload.cookies?.[param.name] : processedPayload.cookies;
+        value = param.name ? payload.cookies?.[param.name] : payload.cookies;
         break;
     }
 

@@ -19,6 +19,7 @@
   "author": "Your Name <youremail@example.com>",
   "license": "MIT",
   "dependencies": {
+    "aws-lambda": "^1.0.7",
     "class-validator": "^0.15.1",
     "parse-multipart-data": "^1.5.0",
     "reflect-metadata": "^0.2.2",
@@ -27,6 +28,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/aws-lambda": "^8.10.161",
     "@types/node": "^25.3.5",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import": "^2.32.0",

@@ -96,9 +96,11 @@ export function Controller(
             data.payload,
           );
 
-          const isOk = OK_STATUSES.includes(response.status);
+          let status = response.status ?? 200;
 
-          for (let index = 0; index < data.interceptors?.length && isOk; index++) {
+          const isError = !OK_STATUSES.includes(status);
+
+          for (let index = 0; index < data.interceptors?.length && !isError; index++) {
             const interceptor = data.interceptors[index];
             response = await interceptor(response);
           }
@@ -106,24 +108,22 @@ export function Controller(
           const propertyName = data.name;
           const prototype = Object.getPrototypeOf(data.controllerInstance);
 
-          let status = 200;
           const methodOkStatus = Reflect.getMetadata(
             OK_METADATA_KEY,
             data.controllerInstance,
             propertyName,
           );
+
           if (methodOkStatus) {
-            status = methodOkStatus;
+            !isError && (status = methodOkStatus);
           } else {
             const classOkStatus = Reflect.getMetadata(OK_METADATA_KEY, prototype);
-            if (classOkStatus) {
-              status = classOkStatus;
-            }
+            !isError && classOkStatus && (status = classOkStatus);
           }
 
-          return { status: isOk ? status : response.status, data: response };
+          return { status, data: response };
         } catch (err) {
-          console.error('---a--a-a-a-a-a-a-a-a-', err);
+          console.error(err);
           throw err;
         }
       }

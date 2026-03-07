@@ -28,3 +28,4 @@ export const Query = (name?: string) => createParamDecorator('query', undefined,
 export const Request = () => createParamDecorator('request');
 export const Headers = (name?: string) => createParamDecorator('headers', undefined, name);
 export const Cookies = (name?: string) => createParamDecorator('cookies', undefined, name);
+export const Multipart = (name?: string) => createParamDecorator('multipart', undefined, name);
