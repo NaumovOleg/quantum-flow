@@ -7,16 +7,11 @@ import {
   INTERCEPTORS,
   MIDDLEWARES,
   OK_METADATA_KEY,
+  OK_STATUSES,
   ROUTE_PREFIX,
 } from '@constants';
 import { Middleware } from '@types';
-import {
-  executeControllerMethod,
-  getControllerMethods,
-  matchRoute,
-  ParseBody,
-  Query,
-} from '@utils';
+import { executeControllerMethod, getControllerMethods, matchRoute } from '@utils';
 
 type ControllerClass = { new (...args: any[]): any };
 type ControllerInstance = InstanceType<ControllerClass>;
@@ -101,7 +96,9 @@ export function Controller(
             data.payload,
           );
 
-          for (let index = 0; index < data.interceptors?.length; index++) {
+          const isOk = OK_STATUSES.includes(response.status);
+
+          for (let index = 0; index < data.interceptors?.length && isOk; index++) {
             const interceptor = data.interceptors[index];
             response = await interceptor(response);
           }
@@ -123,9 +120,10 @@ export function Controller(
               status = classOkStatus;
             }
           }
-          return { status: status ?? 200, data: response };
+
+          return { status: isOk ? status : response.status, data: response };
         } catch (err) {
-          console.error(err);
+          console.error('---a--a-a-a-a-a-a-a-a-', err);
           throw err;
         }
       }
@@ -133,16 +131,6 @@ export function Controller(
       handleRequest = async (request: any) => {
         const method = request.method;
         const path = (request.url.path ?? request.url.pathname ?? '').replace(/^\/+/, '');
-
-        request.headers = request.headers ?? {};
-        request.cookies = request.cookies ?? {};
-
-        try {
-          request.body = ParseBody(request);
-          request.query = Query(request.url);
-        } catch (err) {
-          throw { status: 500, message: 'Validation failed', data: err };
-        }
 
         const baseInterceptors = Reflect.getMetadata(INTERCEPTORS, proto);
 

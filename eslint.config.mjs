@@ -43,6 +43,7 @@ export default tseslint.defineConfig(
           trailingComma: 'all',
           printWidth: 100,
           tabWidth: 2,
+          unusedImports: 'all',
         },
       ],
 

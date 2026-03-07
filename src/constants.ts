@@ -6,3 +6,15 @@ export const CONTROLLERS = 'app:controllers';
 export const INTERCEPTORS = 'app:interceptors';
 export const ENDPOINT = 'route:endpoints';
 export const OK_METADATA_KEY = 'custom:ok';
+
+export const SERVER_CONFIG_KEY = 'server:config';
+export const SERVER_MODULES_KEY = 'server:modules';
+
+export const STOPPED = `
+╔════════════════════════════════════════╗
+║  👋 Server stopped                      ║
+║  📊 Status: STOPPED                      ║
+╚════════════════════════════════════════╝
+          `;
+
+export const OK_STATUSES = [200, 201, 202, 203, 204, 205, 206, 207, 208, 226];
