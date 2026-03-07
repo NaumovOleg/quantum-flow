@@ -1,3 +1,2 @@
-export * from "./controllers/Controller";
-export * from "./Endpoint";
-export * from "./Validate";
+export * from './controllers';
+export * from './Validate';

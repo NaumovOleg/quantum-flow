@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import 'reflect-metadata';
 
-import { matchRoute, ParseBody, Query } from '@utils';
+import { executeControllerMethod, matchRoute, ParseBody, Query } from '@utils';
 
 type ControllerClass = { new (...args: any[]): any };
 type ControllerInstance = InstanceType<ControllerClass>;
@@ -56,26 +56,12 @@ export function Controller(
     }
 
     return class extends constructor {
+      executeControllerMethod = executeControllerMethod;
       constructor(...args: any[]) {
         super(...args);
       }
 
-      private async executeControllerMethod(
-        controller: ControllerInstance,
-        propertyName: string,
-        payload: any,
-      ) {
-        const fn = controller[propertyName];
-        if (typeof fn !== 'function') return null;
-
-        // Get endpoint metadata
-        const endpointMeta = Reflect.getMetadata('endpoint', controller, propertyName);
-        if (!endpointMeta) return null;
-
-        return fn.call(controller, payload);
-      }
-
-      private getControllerMethods(controller: ControllerInstance) {
+      getControllerMethods(controller: ControllerInstance) {
         const methods: Array<{
           name: string;
           httpMethod: string;
@@ -111,7 +97,10 @@ export function Controller(
       }
       handleRequest = async (request: any) => {
         const method = request.method;
-        const path = (request.url.path || request.url.pathname || '').replace(/^\/+/, '');
+        const path = (request.url.path ?? request.url.pathname ?? '').replace(/^\/+/, '');
+
+        request.headers = request.headers ?? {};
+        request.cookies = request.cookies ?? {};
 
         try {
           request.body = ParseBody(request);
@@ -172,7 +161,6 @@ export function Controller(
           if (typeof fn !== 'function') continue;
 
           const endpointMeta = Reflect.getMetadata('endpoint', proto, propertyName);
-          console.log(endpointMeta, method);
           if (endpointMeta) {
             const [httpMethod, routePattern] = endpointMeta;
 
@@ -181,7 +169,7 @@ export function Controller(
                 .filter(Boolean)
                 .join('/')
                 .replace(/\/+/g, '/');
-              console.log(endpointMeta);
+
               const pathParams = matchRoute(fullPattern, path);
               if (pathParams) {
                 let payload = { ...request, params: pathParams };

@@ -1,8 +1,8 @@
-import { Controller, POST } from '@controllers';
 import { Request } from '@types';
 import { Validate } from '@validators';
 import http from 'http';
 import { URL } from 'url';
+import { Controller, POST } from './controllers';
 
 import { IsString } from 'class-validator';
 
@@ -20,7 +20,9 @@ const auth = (req: Request) => {
 export class Controllera {
   // @Validate('body', DTO)
   @POST('/:nane', [auth])
-  async test() {}
+  async test(req: any) {
+    console.log(req);
+  }
 }
 
 const ctr = new Controllera();
