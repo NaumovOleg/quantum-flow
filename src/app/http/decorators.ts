@@ -1,13 +1,25 @@
 import { SERVER_CONFIG_KEY, SERVER_MODULES_KEY } from '@constants';
 
-import { ServerConfig } from '@types';
+import { Conf, Interceptor } from '@types';
 
-export function Server(config: ServerConfig = {}) {
+export function Server(config: Conf = {}) {
   return function (target: any) {
-    Reflect.defineMetadata(SERVER_CONFIG_KEY, config, target);
+    const existingConfig = Reflect.getMetadata(SERVER_CONFIG_KEY, target) || {};
+
+    const mergedConfig = {
+      ...existingConfig,
+      ...config,
+      controllers: [...(existingConfig.controllers || []), ...(config.controllers || [])],
+      globalMiddlewares: existingConfig.globalMiddlewares || config.globalMiddlewares,
+      globalInterceptors: existingConfig.globalInterceptors || config.globalInterceptors || [],
+    };
+
+    Reflect.defineMetadata(SERVER_CONFIG_KEY, mergedConfig, target);
+
     if (config.controllers) {
       Reflect.defineMetadata(SERVER_MODULES_KEY, config.controllers, target);
     }
+
     return target;
   };
 }
@@ -18,7 +30,7 @@ export function Use(middleware: any) {
     const middlewares = existingConfig.globalMiddlewares || [];
 
     middlewares.push(middleware);
-
+    console.log(middlewares);
     Reflect.defineMetadata(
       SERVER_CONFIG_KEY,
       {
@@ -32,7 +44,7 @@ export function Use(middleware: any) {
   };
 }
 
-export function Intercept(interceptor: any) {
+export function Intercept(interceptor: Interceptor) {
   return function (target: any) {
     const existingConfig = Reflect.getMetadata(SERVER_CONFIG_KEY, target) || {};
     const interceptors = existingConfig.globalInterceptors || [];

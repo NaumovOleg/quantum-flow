@@ -11,3 +11,9 @@ export interface ServerConfig {
     lazy?: boolean;
   };
 }
+
+export type Conf = ServerConfig & {
+  globalMiddlewares?: any[];
+  globalInterceptors?: any[];
+  globalErrorHandler?: any;
+};

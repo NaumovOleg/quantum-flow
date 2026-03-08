@@ -39,7 +39,8 @@ export const ParseBody = (request: any): any => {
         return JSON.parse(body.toString('utf8'));
       }
     } catch (error) {
-      console.log(error);
+      console.error(error);
+      throw error;
     }
   }
 

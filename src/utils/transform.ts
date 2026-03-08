@@ -6,11 +6,16 @@ export async function transformAndValidate(dtoClass: any, data: any) {
   }
   if (typeof dtoClass === 'function') {
     const instance = new dtoClass();
+    Object.entries(data).forEach(([key, val]) => {
+      instance[key] = val;
+    });
 
     Object.assign(instance, data);
     if (typeof instance.validate === 'function') {
       await instance.validate();
     }
+
+    console.log('ppppppp', dtoClass, data);
 
     return instance;
   }

@@ -36,6 +36,11 @@ export interface IController {
 }
 
 export type Middleware = (req: Request, res?: ServerResponse) => Promise<Request> | Request;
+export type Interceptor = (
+  data: any,
+  req?: Request,
+  res?: ServerResponse,
+) => Promise<unknown> | unknown;
 
 export type ParamDecoratorType =
   | 'body'

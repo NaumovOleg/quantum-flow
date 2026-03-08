@@ -1,6 +1,7 @@
 import { SERVER_CONFIG_KEY, SERVER_MODULES_KEY } from '@constants';
 import { ServerConfig } from '@types';
 import http from 'http';
+
 export const resolveConfig = (configOrClass?: any): ServerConfig => {
   let config: ServerConfig = {};
 
@@ -20,8 +21,6 @@ export const resolveConfig = (configOrClass?: any): ServerConfig => {
     config = {
       port: 3000,
       host: 'localhost',
-      globalMiddlewares: [],
-      globalInterceptors: [],
       controllers: [],
     };
     console.log('⚙️ Using default configuration');

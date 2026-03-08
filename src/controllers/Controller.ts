@@ -8,7 +8,7 @@ import {
   OK_STATUSES,
   ROUTE_PREFIX,
 } from '@constants';
-import { Middleware } from '@types';
+import { Interceptor, Middleware } from '@types';
 import { executeControllerMethod, getControllerMethods, matchRoute } from '@utils';
 import { ServerResponse } from 'http';
 import 'reflect-metadata';
@@ -20,13 +20,12 @@ interface ControllerConfig {
   prefix: string;
   middlewares?: Array<Middleware>;
   controllers?: ControllerClass[];
-  requestInterceptors?: Middleware[] | Middleware;
-  responseInterceprors?: Array<(...args: any[]) => any> | ((...args: any[]) => any);
+  interceptors?: Array<(...args: any[]) => any> | ((...args: any[]) => any);
 }
 
 export function Controller(
   config: string | ControllerConfig,
-  middlewares: Array<(request: Request, resp?: ServerResponse) => any> = [],
+  middlewares: Array<Interceptor> = [],
 ) {
   // Handle both string and config object
   const routePrefix = typeof config === 'string' ? config : config.prefix;
@@ -36,13 +35,10 @@ export function Controller(
 
   const interceptors =
     typeof config === 'object'
-      ? {
-          request: config.requestInterceptors ? ([] as any).concat(config.requestInterceptors) : [],
-          response: config.responseInterceprors
-            ? ([] as any).concat(config.responseInterceprors)
-            : [],
-        }
-      : { request: [], response: [] };
+      ? config.interceptors
+        ? ([] as any).concat(config.interceptors)
+        : []
+      : [];
 
   return function <T extends ControllerClass>(constructor: T) {
     const proto = constructor.prototype;
@@ -136,11 +132,6 @@ export function Controller(
 
         const baseInterceptors = Reflect.getMetadata(INTERCEPTORS, proto);
 
-        for (let index = 0; index < baseInterceptors.request.length; index++) {
-          const interceptor = interceptors.request[index];
-          request = await interceptor(request, response);
-        }
-
         const routePrefix: string = Reflect.getMetadata(ROUTE_PREFIX, proto) || '';
         const middlewares: Array<(Request: any) => any> =
           Reflect.getMetadata(MIDDLEWARES, proto) || [];
@@ -183,7 +174,7 @@ export function Controller(
                 }
 
                 return this.getResponse({
-                  interceptors: [...subInterceptors.response, ...baseInterceptors.response],
+                  interceptors: [...subInterceptors, ...baseInterceptors],
                   controllerInstance,
                   name: methodInfo.name,
                   payload,
@@ -193,7 +184,7 @@ export function Controller(
             }
           }
         }
-        // Try main controller methods first
+
         const propertyNames = Object.getOwnPropertyNames(proto);
 
         for (const propertyName of propertyNames) {
@@ -221,7 +212,7 @@ export function Controller(
               }
 
               return this.getResponse({
-                interceptors: baseInterceptors.response,
+                interceptors: baseInterceptors,
                 controllerInstance: this,
                 name: propertyName,
                 payload,

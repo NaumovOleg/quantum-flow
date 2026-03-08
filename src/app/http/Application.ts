@@ -11,7 +11,7 @@ export class HttpServer extends Socket {
   private config: ServerConfig;
   private isRunning: boolean = false;
 
-  constructor(configOrClass?: any) {
+  constructor(configOrClass: new (...args: any[]) => any) {
     super();
     this.config = resolveConfig(configOrClass);
 
@@ -32,14 +32,14 @@ export class HttpServer extends Socket {
   private logConfig() {
     console.log(`
 ╔════════════════════════════════════════╗
-║  🚀 Server Configuration               ║
+║  🚀 Server Configuration               
 ╠════════════════════════════════════════╣
-║  📍 Host: ${this.config.host}                       ║
-║  🔌 Port: ${this.config.port}                         ║
-║  🔌 Websocket: ${!!this.config.websocket}                         ║
-║  🔧 Middlewares: ${this.config.globalMiddlewares?.length || 0}                   ║
-║  🎯 Interceptors: ${this.config.globalInterceptors?.length || 0}                   ║
-║  📦 Controllers: ${this.config.controllers?.length || 0}                   ║
+║  📍 Host: ${this.config.host}                       
+║  🔌 Port: ${this.config.port}                         
+║  🔌 Websocket: ${!!this.config.websocket}                         
+║  🔧 Middlewares: ${this.config.globalMiddlewares?.length || 0}                   
+║  🎯 Interceptors: ${this.config.globalInterceptors?.length || 0}                   
+║  📦 Controllers: ${this.config.controllers?.length || 0}                   
 ╚════════════════════════════════════════╝
     `);
   }
@@ -59,9 +59,9 @@ export class HttpServer extends Socket {
           this.isRunning = true;
           console.log(`
 ╔════════════════════════════════════════╗
-║  🎉 Server started successfully!       ║
-║  📍 http://${listenHost}:${listenPort}        ║
-║  📊 Status: RUNNING                     ║
+║  🎉 Server started successfully!       
+║  📍 http://${listenHost}:${listenPort}  
+║  📊 Status: RUNNING                    
 ╚════════════════════════════════════════╝
           `);
           resolve(this.app);
@@ -103,7 +103,7 @@ export class HttpServer extends Socket {
     };
   }
 
-  private async requestHandler(req: http.IncomingMessage, res: http.ServerResponse) {
+  private async requestHandler(req: http.IncomingMessage, res: ServerResponse) {
     const startTime = Date.now();
 
     try {
@@ -112,7 +112,7 @@ export class HttpServer extends Socket {
       let processedRequest = await this.applyMiddlewares(request, res);
       const data = await this.findController(processedRequest, res);
 
-      const finalResponse = await this.applyInterceptors(data, res);
+      const finalResponse = await this.applyInterceptors(data, request, res);
 
       await this.sendResponse(res, finalResponse, startTime);
     } catch (error) {
@@ -182,11 +182,15 @@ export class HttpServer extends Socket {
     };
   }
 
-  private async applyInterceptors(request: any, response: ServerResponse): Promise<any> {
-    let processed = request;
+  private async applyInterceptors(
+    data: any,
+    request: Request,
+    response: ServerResponse,
+  ): Promise<any> {
+    let processed = data;
 
     for (const interceptor of this.config.globalInterceptors || []) {
-      processed = await interceptor(processed, request);
+      processed = await interceptor(processed, request, response);
     }
 
     return processed;
@@ -223,29 +227,24 @@ export class HttpServer extends Socket {
     res: http.ServerResponse,
     startTime: number,
   ): Promise<void> {
-    console.error('❌ Error:', error);
+    let errorResponse = {
+      status: error.status || 500,
+      data: {
+        message: error.message || 'Internal Server Error',
+        errors: error.errors || [],
+      },
+    };
 
-    let errorResponse;
-
-    if (this.config.globalErrorHandler) {
-      try {
-        errorResponse = await this.config.globalErrorHandler(error, req);
-      } catch {
-        errorResponse = {
-          status: 500,
-          data: { message: 'Internal Server Error' },
-        };
-      }
-    } else {
-      errorResponse = {
-        status: error.status || 500,
-        data: {
-          message: error.message || 'Internal Server Error',
-          errors: error.errors || [],
-        },
-      };
+    if (!this.config.globalErrorHandler) {
+      return this.sendResponse(res, errorResponse, startTime);
     }
 
-    await this.sendResponse(res, errorResponse, startTime);
+    try {
+      const intercepted = await this.config.globalErrorHandler(error, req, res);
+      errorResponse = { ...errorResponse, ...intercepted };
+    } catch (cathed) {
+      Object.assign(errorResponse, cathed);
+    }
+    return this.sendResponse(res, errorResponse, startTime);
   }
 }

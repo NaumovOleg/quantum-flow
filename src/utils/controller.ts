@@ -1,7 +1,7 @@
 import { ControllerInstance, Middleware, ParamMetadata } from '@types';
 import { MultipartProcessor } from '@utils';
 import { WebSocketService } from '../app/http/websocket/WebsocetService';
-import { transformAndValidate } from './transform';
+import { Validate } from './validate';
 
 import { ENDPOINT, MIDDLEWARES, PARAM_METADATA_KEY, WS_SERVICE_KEY } from '@constants';
 import { ServerResponse } from 'http';
@@ -79,10 +79,13 @@ export const executeControllerMethod = async (
 
       switch (param.type) {
         case 'body':
-          value = await transformAndValidate(param.dto, body);
+          value = await Validate(param.dto, body);
           break;
         case 'query':
           value = param.name ? payload.query?.[param.name] : payload.query;
+          break;
+        case 'multipart':
+          value = multipart;
           break;
         case 'params':
           value = param.name ? payload.params?.[param.name] : payload.params;
