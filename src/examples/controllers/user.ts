@@ -1,5 +1,3 @@
-// simple-import-sort/imports: off
-import 'reflect-metadata';
 import { IsString } from 'class-validator';
 
 import {
