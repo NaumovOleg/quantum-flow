@@ -1,6 +1,6 @@
 {
   "name": "quantum-flow",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "Decorator-based API framework",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -9,7 +9,11 @@
     "build": "yarn clean && tsc && resolve-tspaths",
     "prepublishOnly": "yarn build",
     "dev": "nodemon --config ./nodemon.json",
-    "link": "yarn link && cd ./examples && yarn link quantum-flow"
+    "link": "yarn link && cd ./examples && yarn link quantum-flow",
+    "publish:public": "yarn publish --access public",
+    "publish:patch": "yarn version --patch && yarn publish --access public",
+    "publish:minor": "yarn version --minor && yarn publish --access public",
+    "publish:major": "yarn version --major && yarn publish --access public"
   },
   "exports": {
     "./core": {
@@ -30,7 +34,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourusername/your-repo.git"
+    "url": "git+https://github.com/NaumovOleg/quantum-flow.git"
   },
   "keywords": [
     "api",
@@ -40,6 +44,10 @@
     "typescript",
     "aws",
     "rest"
+  ],
+  "files": [
+    "dist",
+    "README.md"
   ],
   "author": "Naumov Oleh",
   "dependencies": {
