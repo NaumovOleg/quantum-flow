@@ -16,12 +16,71 @@ yarn build
 
 # Usage
 
+You can use controllers and server functionality by importing controllers and creating server instances as shown in the examples above. Use your preferred testing framework to write unit and integration tests.
+
+# Project Structure
+
+- `quantum-flow/http` - Main application source code for HTTP servers.
+- `quantum-flow/aws` - Main application source code AWS Lambda.
+- `quantum-flow/core` - Core framework components like Controller and Endpoint.
+
+---
+
 ## Defining Controllers
 
 Use the `@Controller` decorator to define controllers with options such as prefix, sub-controllers, middlewares, and interceptors.
 
 ```typescript
-import { Controller } from 'quantum-flow/core';
+import {
+  Body,
+  Catch,
+  Controller,
+  Headers,
+  InjectWS,
+  IWebSocketService,
+  Params,
+  PUT,
+  Query,
+  Request,
+  Response,
+  Status,
+  USE
+} from 'quantum-flow/core';
+import {IsString} from  'class-validator'
+
+class UserDto {
+  constructor() {}
+  @IsString()
+  name: string;
+}
+
+@Controller({
+  prefix: 'user',
+  controllers: [UserMetadata, ...],
+  interceptor: (data, req, res) => {
+    return { data, intercepted: true };
+  },
+})
+@Catch((err) => ({ status: 500, err }))
+export class User {
+  @Status(201)
+  @PUT(':id')
+  async createUser(
+    @Body(UserDto) body: UserDto,
+    @Query() query: any,
+    @Headers() headers: any,
+    @Params() params: any,
+    @Request() req: any,
+    @Response() resp: any,
+    @InjectWS() ws: IWebSocketService,
+  ) {
+  }
+
+  @USE()
+  async any(@Response() resp: any) {
+    ...
+  }
+}
 
 @Controller(api, [...middlewares])
 @Controller({
@@ -34,7 +93,7 @@ import { Controller } from 'quantum-flow/core';
 class RootController {}
 ```
 
-## Creating a Server
+## Creating a http Server
 
 Use the `@Server` decorator with configuration options like port, host, controllers, and WebSocket enablement.
 
@@ -180,43 +239,7 @@ export class Socket {
 }
 ```
 
-# Http server configuration
-
-```typescript
-@Server({
-  controllers: [Root],
-  websocket: { enabled: true },
-  interceptor: (data) => data,
-})
-@Port(3000)
-@Use((data) => data)
-@Use((data) => data)
-@Catch((error) => ({ status: 400, error }))
-class App {}
-```
-
-# Usage
-
-You can use controllers and server functionality by importing controllers and creating server instances as shown in the examples above. Use your preferred testing framework to write unit and integration tests.
-
-# Project Structure
-
-- `quantum-flow/http` - Main application source code for HTTP servers.
-- `quantum-flow/aws` - Main application source code AWS Lambda.
-- `quantum-flow/core` - Core framework components like Controller and Endpoint.
-
----
-
 # Decorators
-
-### Server
-
-Class decorator to configure the server with options like controllers, global middlewares, and interceptors.
-
-```typescript
-@Server({ controllers: [RootController] })
-class App {}
-```
 
 ### Use
 

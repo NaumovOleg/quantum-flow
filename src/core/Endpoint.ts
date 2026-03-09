@@ -24,8 +24,6 @@ export function Endpoint(method: HTTP_METHODS, pathPattern?: string, middlewares
       return descriptor;
     }
 
-    console.log(pathPattern);
-
     if (method && pathPattern) {
       Reflect.defineMetadata(ENDPOINT, [method, pathPattern], target, propertyKey);
       Reflect.defineMetadata('middlewares', middlewares || [], target, propertyKey);
