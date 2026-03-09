@@ -23,11 +23,14 @@ Use the `@Controller` decorator to define controllers with options such as prefi
 ```typescript
 import { Controller } from 'quantum-flow/core';
 
+@Controller(api, [...middlewares])
 @Controller({
   prefix: 'api',
   controllers: [UserController, SocketController],
-  interceptors: [(resp) => resp],
+  middelwares: [...middlewares],
+  interceptor: (parsedRequest, httpRequest, httpResponse) => parsedRequest,
 })
+@Catch((error) => ({ status: 400, error }))
 class RootController {}
 ```
 
@@ -36,16 +39,14 @@ class RootController {}
 Use the `@Server` decorator with configuration options like port, host, controllers, and WebSocket enablement.
 
 ```typescript
-import { Server, Port, Host, Use, Intercept, Catch, HttpServer } from 'quantum-flow/http';
+import { Server, Port, Host, Use, Catch, HttpServer } from 'quantum-flow/http';
 
-@Server({
-  controllers: [RootController],
-})
+@Server({ controllers: [RootController] })
 @Port(3000)
 @Host('localhost')
-@Use((res: any) => res)
-@Intercept((data, req, res) => data)
-@Catch((error) => error)
+@Use((data) => data)
+@Use((data) => data)
+@Catch((error) => ({ status: 400, error }))
 class App {}
 
 const server = new HttpServer(App);
@@ -56,7 +57,6 @@ server.listen().catch(console.error);
 ## Middlewares, Interceptors, and Error Handlers
 
 - Use `@Use` to apply middlewares.
-- Use `@Intercept` to apply interceptors.
 - Use `@Catch` to handle errors.
 - Use `@Port` and `@Host` to configure server port and host.
 
@@ -69,6 +69,7 @@ server.listen().catch(console.error);
 - Use `@Multipart` for handling multipart/form-data requests.
 - Use `@Request` to access the original request object.
 - Use `@Response` to access the original object.
+- Use `@InjectWS` to access the WebsocketService.
 
 # AWS Lambda Support
 
@@ -77,6 +78,20 @@ Use `LambdaAdapter` to convert API Gateway events to requests and responses. Cre
 ```typescript
 Example Lambda handler creation
 import { LambdaAdapter } from 'quantum-flow/aws';
+
+let dbConnection = null;
+
+@Controller({
+  prefix: 'api',
+  controllers: [UserController, SocketController],
+})
+class RootController {
+  async beforeStart(){
+    if(!dbConnection){
+      connection = await connect()
+    }
+  }
+}
 export const handler = LambdaAdapter.createHandler(RootController);
 ```
 
@@ -163,11 +178,20 @@ export class Socket {
     );
   }
 }
+```
+
+# Http server configuration
+
+```typescript
 @Server({
-  controllers: [Socket],
+  controllers: [Root],
   websocket: { enabled: true },
+  interceptor: (data) => data,
 })
-@Use(middleware)
+@Port(3000)
+@Use((data) => data)
+@Use((data) => data)
+@Catch((error) => ({ status: 400, error }))
 class App {}
 ```
 
@@ -200,15 +224,6 @@ Class decorator to add global middlewares to the server.
 
 ```typescript
 @Use(middleware)
-class App {}
-```
-
-### Intercept
-
-Class decorator to add global interceptors to the server.
-
-```typescript
-@Intercept(interceptor)
 class App {}
 ```
 

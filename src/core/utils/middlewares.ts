@@ -1,13 +1,16 @@
-import { INTERCEPTOR, SERVER_CONFIG_KEY } from '@constants';
-import { ErrorCB, InterceptorCB } from '@types';
+import { CATCH, SERVER_CONFIG_KEY } from '@constants';
+import { ErrorCB, MiddlewareCB } from '@types';
 
-export function Intercept(interceptor: InterceptorCB) {
+export function Use(middleware: MiddlewareCB) {
   return function (target: any) {
-    const interceptors = Reflect.getMetadata(INTERCEPTOR, target) ?? [];
+    const config = Reflect.getMetadata(SERVER_CONFIG_KEY, target) || {};
 
-    interceptors.push(interceptor);
-    console.log('=========', interceptor);
-    Reflect.defineMetadata(INTERCEPTOR, interceptors, target);
+    const mergedConfig = {
+      ...config,
+      middlewares: [...(config?.middlewares ?? []), middleware].filter((el) => !!el),
+    };
+
+    Reflect.defineMetadata(SERVER_CONFIG_KEY, mergedConfig, target);
 
     return target;
   };
@@ -15,7 +18,7 @@ export function Intercept(interceptor: InterceptorCB) {
 
 export function Catch(handler: ErrorCB) {
   return function (target: any) {
-    Reflect.defineMetadata(SERVER_CONFIG_KEY, handler, target);
+    Reflect.defineMetadata(CATCH, handler, target);
 
     return target;
   };

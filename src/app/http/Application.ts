@@ -1,4 +1,4 @@
-import { STOPPED } from '@constants';
+import { STATISTIC, STOPPED } from '@constants';
 import { AppRequest, HTTP_METHODS, ResponseWithStatus, ServerConfig } from '@types';
 import { collectRawBody, ParseBody, ParseCookies, ParseQuery, resolveConfig } from '@utils';
 import http, { IncomingMessage, ServerResponse } from 'http';
@@ -26,7 +26,7 @@ export class HttpServer extends Socket {
 
     this.app = app;
 
-    // this.logConfig();
+    this.logConfig();
   }
 
   private logConfig() {
@@ -37,10 +37,11 @@ export class HttpServer extends Socket {
 ║  📍 Host: ${this.config.host}                       
 ║  🔌 Port: ${this.config.port}                         
 ║  🔌 Websocket: ${!!this.config.websocket}                         
-║  🔧 Middlewares: ${this.config.midlewares?.length || 0}                   
+║  🔧 Global Middlewares: ${this.config.middlewares?.length || 0}                   
 ║  🔧 Error middlewares: ${this.config.errorHandler?.length || 0}                   
-║  🎯 Interceptors: ${this.config.interceptors?.length || 0}                   
-║  📦 Controllers: ${this.config.controllers?.length || 0}                   
+║  🎯 Global Interceptors: ${!!this.config.interceptor?.length}                   
+║  📦 Controllers: ${STATISTIC.controllers}                   
+║  📦 Routes: ${STATISTIC.routes}                   
 ╚════════════════════════════════════════╝
     `);
   }
@@ -111,11 +112,13 @@ export class HttpServer extends Socket {
       const request = await this.createRequest(req);
 
       let appRequest = await this.applyMiddlewares(request, req, res);
-      const data = await this.findController(appRequest, req, res);
+      let data = await this.findController(appRequest, req, res);
 
-      const finalResponse = await this.applyInterceptors(data, req, res);
+      if (this.config.interceptor) {
+        data = await this.config.interceptor(data, req, res);
+      }
 
-      await this.sendResponse(res, finalResponse, startTime);
+      await this.sendResponse(res, data, startTime);
     } catch (error) {
       await this.handleError(error, req, res, startTime);
     }
@@ -153,13 +156,13 @@ export class HttpServer extends Socket {
   }
 
   private async applyMiddlewares(
-    appRequest: any,
+    appRequest: AppRequest,
     request: IncomingMessage,
     response: http.ServerResponse,
   ): Promise<any> {
     let processed = appRequest;
 
-    for (const middleware of this.config.midlewares || []) {
+    for (const middleware of this.config.middlewares?.reverse() || []) {
       const result = await middleware(processed, request, response);
       if (result) {
         processed = result;
@@ -189,20 +192,6 @@ export class HttpServer extends Socket {
       status: 404,
       data: { message: `Route ${appRequest.method} ${appRequest.url.pathname} not found` },
     };
-  }
-
-  private async applyInterceptors(
-    data: any,
-    request: IncomingMessage,
-    response: ServerResponse,
-  ): Promise<any> {
-    let processed = data;
-
-    for (const interceptor of this.config.interceptors || []) {
-      processed = await interceptor(processed, request, response);
-    }
-
-    return processed;
   }
 
   private async sendResponse(

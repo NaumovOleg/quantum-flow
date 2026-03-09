@@ -3,8 +3,8 @@ import { ErrorCB, InterceptorCB, MiddlewareCB } from './common';
 export interface ServerConfig {
   port?: number;
   host?: string;
-  midlewares?: MiddlewareCB[];
-  interceptors?: InterceptorCB[];
+  middlewares?: MiddlewareCB[];
+  interceptor?: InterceptorCB;
   errorHandler?: ErrorCB;
   controllers?: (new (...args: any[]) => any)[];
   websocket?: {
@@ -13,9 +13,3 @@ export interface ServerConfig {
     lazy?: boolean;
   };
 }
-
-export type Conf = ServerConfig & {
-  globalMiddlewares?: any[];
-  globalInterceptors?: any[];
-  globalErrorHandler?: any;
-};

@@ -10,6 +10,7 @@ export {
   ErrorCB,
   IController,
   InterceptorCB,
+  IWebSocketService,
   MiddlewareCB,
   ResponseWithStatus,
   Router,

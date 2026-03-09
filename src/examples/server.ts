@@ -1,34 +1,21 @@
-import { Catch, Controller, Intercept } from 'quantum-flow/core';
-import { Host, HttpServer, Port, Server, Use } from 'quantum-flow/http';
+import { Catch, Controller, Use } from 'quantum-flow/core';
+import { HttpServer, Port, Server } from 'quantum-flow/http';
 import 'reflect-metadata';
 
 import { User } from './controllers/user';
 
-@Controller({
-  prefix: 'api',
-  controllers: [User],
-  interceptor: (resp: any) => {
-    console.log('APP INTERCEPTOR');
-    return resp;
-  },
-})
+@Controller({ prefix: 'api', controllers: [User] })
 class Root {}
 
 @Server({
   controllers: [Root],
-  websocket: {
-    enabled: true,
-  },
+  websocket: { enabled: true },
+  interceptor: (data) => data,
 })
 @Port(3000)
-@Host('localhost')
-@Use((res: any) => res)
-@Intercept((data: any, req, res) => {
-  return data;
-})
-@Catch((r: any) => {
-  return r;
-})
+@Use((data) => data)
+@Use((data) => data)
+@Catch((error) => ({ status: 400, error }))
 class App {}
 
 const server = new HttpServer(App);

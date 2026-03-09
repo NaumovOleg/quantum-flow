@@ -1,4 +1,4 @@
-import { ENDPOINT, MIDDLEWARES } from '@constants';
+import { ENDPOINT, INCREMENT_STATISTIC, MIDDLEWARES } from '@constants';
 import { HTTP_METHODS, MiddlewareCB } from '@types';
 
 /**
@@ -24,10 +24,14 @@ export function Endpoint(method: HTTP_METHODS, pathPattern?: string, middlewares
       return descriptor;
     }
 
+    console.log(pathPattern);
+
     if (method && pathPattern) {
       Reflect.defineMetadata(ENDPOINT, [method, pathPattern], target, propertyKey);
       Reflect.defineMetadata('middlewares', middlewares || [], target, propertyKey);
     }
+
+    INCREMENT_STATISTIC('routes');
 
     return descriptor;
   };
@@ -120,6 +124,7 @@ export function USE(middlewares?: MiddlewareCB[]) {
   return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
     Reflect.defineMetadata(ENDPOINT, ['USE', '/'], target, propertyKey);
     Reflect.defineMetadata(MIDDLEWARES, middlewares || [], target, propertyKey);
+    INCREMENT_STATISTIC('routes');
     return descriptor;
   };
 }

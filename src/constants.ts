@@ -10,6 +10,7 @@ export const OK_METADATA_KEY = 'custom:ok';
 
 export const SERVER_CONFIG_KEY = 'server:config';
 export const SERVER_MODULES_KEY = 'server:modules';
+export const USE_MIDDLEWARE = 'controller:usemiddleware';
 
 export const WS_METADATA_KEY = 'websocket:handler';
 export const WS_TOPIC_KEY = 'websocket:topic';
@@ -26,3 +27,12 @@ export const STOPPED = `
 
 export const OK_STATUSES = [200, 201, 202, 203, 204, 205, 206, 207, 208, 226];
 export const TO_VALIDATE = ['headers', 'params', 'multipart', 'query', 'body'];
+
+export const STATISTIC: Record<'controllers' | 'routes', number> = {
+  controllers: 0,
+  routes: 0,
+};
+
+export const INCREMENT_STATISTIC = (prop: 'controllers' | 'routes') => {
+  STATISTIC[prop] = STATISTIC[prop] + 1;
+};

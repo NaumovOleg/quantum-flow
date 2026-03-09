@@ -6,6 +6,8 @@ import {
   Controller,
   Headers,
   InjectWS,
+  IWebSocketService,
+  Params,
   PUT,
   Query,
   Request,
@@ -26,47 +28,30 @@ class DTO {
   prefix: 'user',
   controllers: [UserMetadata],
   interceptor: (data, req, res) => {
-    console.log('user interceptor');
-    console.log('=============', res?.statusCode, req?.method);
-
-    return data;
+    return { data, intercepted: true };
   },
 })
 @Catch((err) => {
-  console.log('USER catched');
   return { status: 401, err };
 })
 export class User {
   @Status(201)
-  @PUT('/:nane')
+  @PUT(':id')
   async createUser(
     @Body(DTO) body: DTO,
     @Query() query: any,
     @Headers() headers: any,
-    @InjectWS() ws: any,
-    @Response() resp: any,
+    @InjectWS() ws: IWebSocketService,
     @Request() req: any,
+    @Params() params: any,
+    @Response() resp: any,
   ) {
-    console.log('createUser');
-    resp.setHeader('Set-Cookie', ['token=; Path=/; Max-Age=0', 'userId=; Path=/; Max-Age=0']);
-    return {
-      body,
-      query,
-      headers,
-    };
+    return { body, query, headers, params };
   }
 
   @Status(300)
   @USE()
-  async any(
-    @Body(DTO) body: any,
-    @Query() query: any,
-    @Headers() headers: any,
-    @InjectWS() ws: any,
-    @Response() resp: any,
-  ) {
-    console.log('use');
-    resp.setHeader('Set-Cookie', ['token=; Path=/; Max-Age=0', 'userId=; Path=/; Max-Age=0']);
-    return 'Test';
+  async any(@Response() resp: any) {
+    return 'done';
   }
 }

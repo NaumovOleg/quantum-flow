@@ -3,6 +3,7 @@ import {
   CATCH,
   CONTROLLERS,
   ENDPOINT,
+  INCREMENT_STATISTIC,
   INTERCEPTOR,
   MIDDLEWARES,
   OK_METADATA_KEY,
@@ -46,6 +47,7 @@ export function Controller(
   config: string | ControllerConfig,
   middlewares: Array<InterceptorCB> = [],
 ) {
+  INCREMENT_STATISTIC('controllers');
   // Handle both string and config object
   const routePrefix = typeof config === 'string' ? config : config.prefix;
   const controllers = typeof config === 'object' ? config.controllers : undefined;
@@ -302,7 +304,7 @@ export function Controller(
           }
           const current = [path, routePattern].join('/').replace(/\/+/g, '/');
 
-          const pathParams = matchRoute(route, current);
+          const pathParams = matchRoute(current, route);
 
           if (pathParams) {
             const priority = httpMethod === 'USE' ? 0 : Object.keys(pathParams).length > 0 ? 1 : 2;
