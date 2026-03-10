@@ -5,3 +5,4 @@ dist/
 coverage/
 ./server.ts
 testing/
+src/examples/mock/*

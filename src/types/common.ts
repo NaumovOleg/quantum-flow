@@ -14,6 +14,7 @@ export interface HttpError extends Error {
 export type AppRequest<B = unknown, Q extends P_Q = unknown, P extends P_Q = unknown> = {
   method: HTTP_METHODS;
   url: URL;
+  path?: string;
   headers: IncomingHttpHeaders;
   query?: Q;
   params?: P;
@@ -22,6 +23,14 @@ export type AppRequest<B = unknown, Q extends P_Q = unknown, P extends P_Q = unk
   isBase64Encoded?: boolean;
   cookies: Record<string, string>;
   _startTime: number;
+
+  // Lambda-specific
+  event?: any;
+  context?: any;
+  requestId?: string;
+  stage?: string;
+  sourceIp?: string;
+  userAgent?: string;
 };
 
 export type Router = (

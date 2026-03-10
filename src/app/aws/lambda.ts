@@ -1,288 +1,253 @@
-import { OK_STATUSES } from '@constants';
-import { ParseBody } from '@utils';
-import {
-  APIGatewayProxyEvent,
-  APIGatewayProxyEventHeaders,
-  APIGatewayProxyEventPathParameters,
-  APIGatewayProxyResult,
-  Context,
-  Handler,
-} from 'aws-lambda';
-
-import { Lambda, LambdaApp, LambdaRequest, LambdaResponse } from '@types';
+import { AppRequest, LambdaApp, NormalizedEvent } from '@types';
+import { normalizeEvent } from '@utils';
+import { APIGatewayProxyResult, APIGatewayProxyResultV2, Context, Handler } from 'aws-lambda';
 
 export class LambdaAdapter {
-  private static getHeaderValue(headers: any, headerName: string): string | undefined {
-    const value = headers?.[headerName] || headers?.[headerName.toLowerCase()];
-
-    if (!value) return undefined;
-
-    if (Array.isArray(value)) {
-      return value[0];
-    }
-
-    return value;
-  }
-  static toRequest(event: APIGatewayProxyEvent, context: Context): LambdaRequest {
-    const query: Record<string, string | string[]> = {};
-    if (event.queryStringParameters) {
-      Object.entries(event.queryStringParameters).forEach(([key, value]) => {
-        if (event.multiValueQueryStringParameters?.[key]) {
-          query[key] = event.multiValueQueryStringParameters[key];
-        } else {
-          query[key] = value || '';
-        }
-      });
-    }
-
-    const cookies: Record<string, string> = {};
-    const cookieHeader = event.headers?.Cookie || event.headers?.cookie;
-    if (cookieHeader) {
-      cookieHeader.split(';').forEach((cookie) => {
-        const [name, value] = cookie.trim().split('=');
-        if (name && value) {
-          cookies[name] = decodeURIComponent(value);
-        }
-      });
-    }
-
-    let body = ParseBody(event);
-    const protocol = event.headers?.['x-forwarded-proto'] || 'http';
-    const host = event.headers?.host || 'localhost';
-
-    const cleanPath = event.path.split('?')[0];
-
-    const fullUrl = `${protocol}://${host}${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
-
-    let url: URL;
-    try {
-      url = new URL(fullUrl);
-
-      if (event.queryStringParameters) {
-        Object.entries(event.queryStringParameters).forEach(([key, value]) => {
-          if (value) url.searchParams.append(key, value);
-        });
-      }
-    } catch (error) {
-      console.error('❌ Failed to create URL:', fullUrl, error);
-      url = new URL('http://localhost/');
-    }
-
-    return {
-      method: event.httpMethod,
-      path: cleanPath,
-      url,
-      headers: this.safeHeaders(event.headers),
-      query,
-      body,
-      params: this.safeParams(event.pathParameters),
-      cookies,
-      event,
-      context,
-      isBase64Encoded: event.isBase64Encoded || false,
-      requestId: context.awsRequestId,
-      stage: event.requestContext?.stage || '$default',
-      sourceIp: this.getSourceIp(event),
-      userAgent: this.getUserAgent(event),
-    };
-  }
-
-  static createResponseBody(response: any) {
-    let body = response;
-    if (response && typeof response === 'object') {
-      if ('data' in response) {
-        body = {
-          data: response.data,
-          timestamp: new Date().toISOString(),
-        };
-      } else if (response.body) {
-        return response as LambdaResponse;
-      } else {
-        body = {
-          data: response,
-          timestamp: new Date().toISOString(),
-        };
-      }
-    }
-
-    return body;
-  }
-
-  static toLambdaResponse(response: any, request?: LambdaRequest): LambdaResponse {
-    let statusCode = response.status ?? 200;
-
-    let body: any = this.createResponseBody(response);
-    let headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'X-Request-Id': request?.requestId || 'unknown',
-      'X-Powered-By': 'Lambda Decorators',
-    };
-
-    const cookies: string[] = [];
-
-    if (response && typeof response === 'object') {
-      if ('data' in response) {
-        body = {
-          success: OK_STATUSES.includes(statusCode),
-          data: response.data,
-          timestamp: new Date().toISOString(),
-          requestId: request?.requestId,
-        };
-      } else if (response.body) {
-        return response as LambdaResponse;
-      } else {
-        body = {
-          success: OK_STATUSES.includes(statusCode),
-          data: response,
-          timestamp: new Date().toISOString(),
-          requestId: request?.requestId,
-        };
-      }
-    }
-    let origin = LambdaAdapter.getHeaderValue(request?.headers, 'origin');
-    const originHeader = Array.isArray(origin) ? origin[0] : origin;
-
-    if (originHeader) {
-      headers['Access-Control-Allow-Origin'] = originHeader;
-      headers['Access-Control-Allow-Credentials'] = 'true';
-      headers['Access-Control-Allow-Methods'] = 'GET,POST,PUT,DELETE,OPTIONS';
-      headers['Access-Control-Allow-Headers'] =
-        'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token';
-    }
-
-    if (request?.cookies && Object.keys(request.cookies).length > 0) {
-      Object.entries(request.cookies).forEach(([name, value]) => {
-        cookies.push(`${name}=${encodeURIComponent(value)}; Path=/; HttpOnly`);
-      });
-    }
-
-    const lambdaResponse: LambdaResponse = {
-      statusCode,
-      headers,
-      body: JSON.stringify(body),
-      isBase64Encoded: false,
-    };
-
-    if (cookies.length > 0) {
-      lambdaResponse.cookies = cookies;
-    }
-
-    if (cookies.length > 0) {
-      lambdaResponse.multiValueHeaders = {
-        'Set-Cookie': cookies,
-      };
-    }
-
-    return lambdaResponse;
-  }
-
-  static createHandler(Contoller: new (...args: any[]) => LambdaApp) {
-    const handler: Handler<APIGatewayProxyEvent, APIGatewayProxyResult> = async (
-      event,
-      context,
-    ) => {
-      const instance = new Contoller() as Lambda;
+  static createHandler(Controller: new (...args: any[]) => LambdaApp): Handler {
+    return async (event: any, context: Context) => {
+      const instance: any = new Controller();
 
       if (Object.hasOwn(instance, 'beforeStart')) {
         await instance.beforeStart?.();
       }
 
       try {
-        const request = LambdaAdapter.toRequest(event, context);
+        const eventType = this.getEventType(event);
+        const normalizedEvent = normalizeEvent(event, eventType);
 
-        if (typeof instance.handleRequest === 'function') {
-          const response = await instance.handleRequest(request);
+        const request = this.toRequest(normalizedEvent, context);
 
-          return LambdaAdapter.toLambdaResponse(response, request);
-        } else {
+        if (typeof instance.handleRequest !== 'function') {
           throw new Error('Controller must have handleRequest method');
         }
+
+        const response = await instance.handleRequest(request);
+
+        return this.toLambdaResponse(response, request, eventType);
       } catch (error: any) {
-        console.error('❌ Lambda error:', error);
-
-        const errorResponse: any = {
-          statusCode: error.status || 500,
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Request-Id': context.awsRequestId,
-            'Access-Control-Allow-Origin': event.headers?.origin || event.headers?.Origin || '*',
-            'Access-Control-Allow-Credentials': 'true',
-          },
-          body: JSON.stringify({
-            success: false,
-            message: error.message || 'Internal Server Error',
-            requestId: context.awsRequestId,
-          }),
-        };
-
-        if (error.cookies) {
-          errorResponse.cookies = error.cookies;
-        }
-
-        return errorResponse;
+        return this.handleError(error, event, context);
       }
     };
-
-    return handler;
   }
 
-  private static safeHeaders(
-    headers: APIGatewayProxyEventHeaders,
-  ): Record<string, string | string[]> {
-    const result: Record<string, string | string[]> = {};
+  private static getEventType(event: any): 'rest' | 'http' | 'url' {
+    if (event.httpMethod && event.resource) {
+      return 'rest';
+    }
+    if (event.version === '2.0' || event.requestContext?.http) {
+      return 'http';
+    }
+    if (event.version && event.rawPath && !event.requestContext?.http) {
+      return 'url';
+    }
+    return 'rest';
+  }
 
-    if (!headers) return result;
+  private static toRequest(event: NormalizedEvent, context: Context): AppRequest {
+    const query: Record<string, string | string[]> = {};
 
-    Object.entries(headers).forEach(([key, value]) => {
-      if (value !== undefined) {
-        result[key] = value;
+    if (event.multiValueQueryStringParameters) {
+      Object.entries(event.multiValueQueryStringParameters).forEach(([key, value]) => {
+        query[key] = value;
+      });
+    } else {
+      Object.entries(event.queryStringParameters).forEach(([key, value]) => {
+        query[key] = value;
+      });
+    }
+
+    const cookies: Record<string, string> = {};
+    const cookieHeader = event.headers?.Cookie || event.headers?.cookie || event.headers?.cookies;
+
+    if (cookieHeader) {
+      if (Array.isArray(cookieHeader)) {
+        cookieHeader.forEach((cookie) => {
+          const [name, value] = cookie.split('=');
+          if (name && value) cookies[name] = decodeURIComponent(value);
+        });
+      } else {
+        cookieHeader.split(';').forEach((cookie) => {
+          const [name, value] = cookie.trim().split('=');
+          if (name && value) cookies[name] = decodeURIComponent(value);
+        });
       }
+    }
+
+    let rawBody = Buffer.from(event.body ?? '', 'base64');
+    let body = event.body || {};
+
+    if (event.body && event.isBase64Encoded) {
+      body = rawBody.toString('utf-8');
+    }
+
+    if (typeof body === 'string' && body.trim().startsWith('{')) {
+      try {
+        body = JSON.parse(body);
+      } catch (e) {}
+    }
+
+    const xForvarded = Array.isArray(event.headers['x-forwarded-proto'])
+      ? event.headers['x-forwarded-proto']?.[0]
+      : event.headers['x-forwarded-proto'];
+
+    const xhost = Array.isArray(event.headers['host'])
+      ? event.headers['host']?.[0]
+      : event.headers['host'];
+
+    const protocol = xForvarded || 'https';
+    const host = xhost || 'localhost:3000';
+    const fullUrl = `${protocol}://${host}${event.path}`;
+
+    let url = new URL(fullUrl);
+
+    return {
+      method: event.httpMethod.toUpperCase() as any,
+      url,
+      headers: event.headers,
+      query,
+      body,
+      params: event.pathParameters,
+      cookies,
+      event,
+      context,
+      rawBody,
+      path: event.path,
+      isBase64Encoded: event.isBase64Encoded,
+      requestId: context.awsRequestId,
+      stage: event.requestContext?.stage || '$default',
+      sourceIp: this.getSourceIp(event),
+      _startTime: Date.now(),
+      userAgent:
+        typeof event.headers['user-agent'] === 'string'
+          ? event.headers['user-agent']
+          : event.headers['user-agent']?.[0] || 'unknown',
+    };
+  }
+
+  private static toLambdaResponse(
+    response: any,
+    request: AppRequest,
+    eventType: string,
+  ): APIGatewayProxyResult | APIGatewayProxyResultV2 | any {
+    const statusCode = response.status || 200;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-Request-Id': request.requestId,
+      ...(response.headers || {}),
+    };
+
+    const originHeader = request.headers['origin'] || request.headers['Origin'];
+    let origin: string | undefined;
+
+    if (originHeader) {
+      if (Array.isArray(originHeader)) {
+        origin = originHeader[0];
+      } else {
+        origin = originHeader;
+      }
+    }
+
+    if (origin) {
+      headers['Access-Control-Allow-Origin'] = origin;
+      headers['Access-Control-Allow-Credentials'] = 'true';
+      headers['Access-Control-Allow-Methods'] = 'GET,POST,PUT,DELETE,OPTIONS';
+      headers['Access-Control-Allow-Headers'] =
+        'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token';
+    }
+
+    const body = JSON.stringify({
+      success: statusCode < 400,
+      data: response.data,
+      timestamp: new Date().toISOString(),
     });
 
-    return result;
+    const commonResponse = {
+      statusCode,
+      headers,
+      body: response.data,
+      timestamp: new Date().toISOString(),
+    };
+
+    switch (eventType) {
+      case 'rest':
+        return { ...commonResponse, isBase64Encoded: false };
+
+      case 'http':
+        return {
+          ...commonResponse,
+          cookies: request.cookies
+            ? Object.entries(request.cookies).map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+            : undefined,
+        };
+
+      case 'url':
+        return {
+          ...commonResponse,
+          cookies: request.cookies
+            ? Object.entries(request.cookies).map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+            : undefined,
+        };
+
+      default:
+        return {
+          statusCode,
+          headers,
+          body,
+        };
+    }
   }
 
-  private static safeParams(
-    params: APIGatewayProxyEventPathParameters | null,
-  ): Record<string, string> {
-    const result: Record<string, string> = {};
+  private static handleError(error: any, event: any, context: Context) {
+    const eventType = this.getEventType(event);
+    const statusCode = error.status || 500;
 
-    if (!params) return result;
-
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined) {
-        result[key] = value;
-      }
+    const body = JSON.stringify({
+      success: false,
+      message: error.message || 'Internal Server Error',
+      requestId: context.awsRequestId,
     });
 
-    return result;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-Request-Id': context.awsRequestId,
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Credentials': 'true',
+    };
+
+    switch (eventType) {
+      case 'rest':
+        return {
+          statusCode,
+          headers,
+          body,
+          isBase64Encoded: false,
+        };
+      default:
+        return {
+          statusCode,
+          headers,
+          body,
+        };
+    }
   }
 
-  private static getSourceIp(event: APIGatewayProxyEvent): string {
+  private static getSourceIp(event: NormalizedEvent): string {
+    const forwardedFor = event.headers['x-forwarded-for'];
+    if (forwardedFor) {
+      if (Array.isArray(forwardedFor)) {
+        return forwardedFor[0].split(',')[0].trim();
+      }
+      return forwardedFor.split(',')[0].trim();
+    }
+
     if (event.requestContext?.identity?.sourceIp) {
       return event.requestContext.identity.sourceIp;
     }
 
-    const forwardedFor: any = event.headers?.['x-forwarded-for'];
-    if (forwardedFor) {
-      if (typeof forwardedFor === 'string') {
-        return forwardedFor.split(',')[0].trim();
-      }
-      if (Array.isArray(forwardedFor) && forwardedFor.length > 0) {
-        return forwardedFor[0].split(',')[0].trim();
-      }
+    if (event.requestContext?.http?.sourceIp) {
+      return event.requestContext.http.sourceIp;
     }
 
     return '0.0.0.0';
-  }
-
-  private static getUserAgent(event: APIGatewayProxyEvent): string {
-    const ua: any = event.headers?.['user-agent'];
-    if (!ua) return 'unknown';
-
-    if (typeof ua === 'string') return ua;
-    if (Array.isArray(ua) && ua.length > 0) return ua[0];
-
-    return 'unknown';
   }
 }
