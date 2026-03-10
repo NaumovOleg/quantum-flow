@@ -2,7 +2,6 @@ import { IsString } from 'class-validator';
 
 import {
   Body,
-  Catch,
   Controller,
   Headers,
   InjectWS,
@@ -27,12 +26,14 @@ class DTO {
 @Controller({
   prefix: 'user',
   controllers: [UserMetadata],
+  middlewares: [
+    (req) => {
+      return req;
+    },
+  ],
   interceptor: (data, req, res) => {
     return { data, intercepted: true };
   },
-})
-@Catch((err) => {
-  return { status: 401, err };
 })
 export class User {
   @Status(201)

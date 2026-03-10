@@ -3,6 +3,14 @@ import { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http';
 
 type P_Q = Record<string, string | undefined> | null | unknown;
 
+export interface HttpError extends Error {
+  statusCode?: number;
+  status: number;
+  data?: any;
+  messages?: string[];
+  errors?: Array<{ message: string }>;
+}
+
 export type AppRequest<B = unknown, Q extends P_Q = unknown, P extends P_Q = unknown> = {
   method: HTTP_METHODS;
   url: URL;
@@ -42,8 +50,8 @@ export interface IController {
 export type MiddlewareCB = (
   appRequest: AppRequest,
   request?: IncomingMessage,
-  respinse?: ServerResponse,
-) => Promise<AppRequest> | AppRequest;
+  response?: ServerResponse,
+) => void | Promise<AppRequest> | AppRequest;
 
 export type InterceptorCB = (
   data: any,
@@ -52,7 +60,7 @@ export type InterceptorCB = (
 ) => Promise<unknown> | unknown;
 
 export type ErrorCB = (
-  error: Error,
+  error: HttpError,
   req?: IncomingMessage,
   res?: ServerResponse,
 ) => Promise<ResponseWithStatus> | ResponseWithStatus;

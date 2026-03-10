@@ -10,13 +10,23 @@ export const Body = (dto?: any) => createParamDecorator('body', dto);
  * Parameter decorator to extract route parameters.
  * @param name Optional name of the parameter to extract.
  */
-export const Params = (name?: string) => createParamDecorator('params', undefined, name);
+export const Params = (dto?: any, name?: string) =>
+  createParamDecorator(
+    'params',
+    typeof dto == 'string' ? undefined : dto,
+    typeof dto == 'string' ? dto : name,
+  );
 
 /**
  * Parameter decorator to extract query parameters.
  * @param name Optional name of the query parameter to extract.
  */
-export const Query = (name?: string) => createParamDecorator('query', undefined, name);
+export const Query = (dto?: any, name?: string) =>
+  createParamDecorator(
+    'query',
+    typeof dto == 'string' ? undefined : dto,
+    typeof dto == 'string' ? dto : name,
+  );
 
 /**
  * Parameter decorator to inject the entire request object.

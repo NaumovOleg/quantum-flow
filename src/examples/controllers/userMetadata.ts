@@ -1,9 +1,16 @@
+import { IsString } from 'class-validator';
 import { Controller, GET, Params } from 'quantum-flow/core';
+
+class DTO {
+  constructor() {}
+  @IsString()
+  meta: string;
+}
 
 @Controller({ prefix: 'metadata' })
 export class UserMetadata {
-  @GET('/:name')
-  async getUserMetadata(@Params() params: any) {
+  @GET('/:meta')
+  async getUserMetadata(@Params(DTO, 'meta') params: any) {
     return params;
   }
 }

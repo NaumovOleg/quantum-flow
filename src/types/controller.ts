@@ -36,5 +36,6 @@ export type RouteContext = {
   response?: ServerResponse;
   middlewareChain: MiddlewareCB[];
   interceptorChain: InterceptorCB[];
+  errorHandlerChain: ErrorCB[];
   subPath: string;
 };

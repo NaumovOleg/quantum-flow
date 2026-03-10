@@ -1,4 +1,4 @@
-import { Catch, Controller, Use } from 'quantum-flow/core';
+import { Controller, Use } from 'quantum-flow/core';
 import { HttpServer, Port, Server } from 'quantum-flow/http';
 import 'reflect-metadata';
 
@@ -11,11 +11,14 @@ class Root {}
   controllers: [Root],
   websocket: { enabled: true },
   interceptor: (data) => data,
+  errorHandler: (err) => {
+    return err;
+  },
 })
 @Port(3000)
 @Use((data) => data)
 @Use((data) => data)
-@Catch((error) => ({ status: 400, error }))
+// @Catch((error) => ({ status: 400, error }))
 class App {}
 
 const server = new HttpServer(App);

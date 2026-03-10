@@ -66,7 +66,7 @@ export class User {
     @Body(UserDto) body: UserDto,
     @Query() query: any,
     @Headers() headers: any,
-    @Params() params: any,
+    @Params(ParamDTO, 'param') params: any,
     @Request() req: any,
     @Response() resp: any,
     @InjectWS() ws: IWebSocketService,

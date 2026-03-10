@@ -1,5 +1,5 @@
 import { PARAM_METADATA_KEY } from '@constants';
-import { ParamMetadata, ParamDecoratorType } from '@types';
+import { ParamDecoratorType, ParamMetadata } from '@types';
 
 export function createParamDecorator(type: ParamDecoratorType, dto?: any, name?: string) {
   return function (target: any, propertyKey: string | symbol, parameterIndex: number) {
@@ -10,7 +10,5 @@ export function createParamDecorator(type: ParamDecoratorType, dto?: any, name?:
     existingParams.sort((a, b) => a.index - b.index);
 
     Reflect.defineMetadata(PARAM_METADATA_KEY, existingParams, target, propertyKey);
-
-    const saved = Reflect.getMetadata(PARAM_METADATA_KEY, target, propertyKey);
   };
 }

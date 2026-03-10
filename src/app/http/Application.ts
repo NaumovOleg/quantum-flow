@@ -1,4 +1,4 @@
-import { STATISTIC, STOPPED } from '@constants';
+import { OK_STATUSES, STATISTIC, STOPPED } from '@constants';
 import { AppRequest, HTTP_METHODS, ResponseWithStatus, ServerConfig } from '@types';
 import { collectRawBody, ParseBody, ParseCookies, ParseQuery, resolveConfig } from '@utils';
 import http, { IncomingMessage, ServerResponse } from 'http';
@@ -38,7 +38,7 @@ export class HttpServer extends Socket {
 ║  🔌 Port: ${this.config.port}                         
 ║  🔌 Websocket: ${!!this.config.websocket}                         
 ║  🔧 Global Middlewares: ${this.config.middlewares?.length || 0}                   
-║  🔧 Error middlewares: ${this.config.errorHandler?.length || 0}                   
+║  🔧 Error handler: ${!this.config.errorHandler}                   
 ║  🎯 Global Interceptors: ${!!this.config.interceptor?.length}                   
 ║  📦 Controllers: ${STATISTIC.controllers}                   
 ║  📦 Routes: ${STATISTIC.routes}                   
@@ -114,13 +114,17 @@ export class HttpServer extends Socket {
       let appRequest = await this.applyMiddlewares(request, req, res);
       let data = await this.findController(appRequest, req, res);
 
+      const isError = !OK_STATUSES.includes(data.status);
+      if (isError) {
+        return this.handleError(data, req, res, startTime);
+      }
       if (this.config.interceptor) {
         data = await this.config.interceptor(data, req, res);
       }
 
-      await this.sendResponse(res, data, startTime);
+      return this.sendResponse(res, data, startTime);
     } catch (error) {
-      await this.handleError(error, req, res, startTime);
+      return this.handleError(error, req, res, startTime);
     }
   }
 
@@ -164,9 +168,7 @@ export class HttpServer extends Socket {
 
     for (const middleware of this.config.middlewares?.reverse() || []) {
       const result = await middleware(processed, request, response);
-      if (result) {
-        processed = result;
-      }
+      processed = result ?? processed;
     }
 
     return processed;
@@ -181,7 +183,6 @@ export class HttpServer extends Socket {
       const instance = new ControllerClass();
       if (typeof instance.handleRequest === 'function') {
         const data = await instance.handleRequest(appRequest, request, response);
-
         if (data && data.status !== 404) {
           return data;
         }
@@ -239,10 +240,12 @@ export class HttpServer extends Socket {
 
     try {
       const intercepted = await this.config.errorHandler(error, request, response);
+
       errorResponse = intercepted;
     } catch (cathed) {
       Object.assign(errorResponse, cathed);
     }
+
     return this.sendResponse(response, errorResponse, startTime);
   }
 }

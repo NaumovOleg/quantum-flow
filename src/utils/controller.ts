@@ -60,10 +60,11 @@ export const executeControllerMethod = async (
   const paramMetadata: ParamMetadata[] =
     Reflect.getMetadata(PARAM_METADATA_KEY, prototype, propertyName) || [];
 
-  const { body, multipart } = getBodyAndMultipart(payload);
   if (paramMetadata.length === 0) {
     return fn.call(controller, payload);
   }
+
+  const { body, multipart } = getBodyAndMultipart(payload);
 
   const args: any[] = [];
 
@@ -105,7 +106,10 @@ export const executeControllerMethod = async (
     }
 
     if (TO_VALIDATE.includes(param.type)) {
-      value = await validate(param.dto, value);
+      value = await validate(
+        param.dto,
+        typeof value === 'string' ? { [param.name ?? '']: value } : value,
+      );
     }
 
     args[i] = value;

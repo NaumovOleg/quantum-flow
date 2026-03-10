@@ -16,6 +16,7 @@ import {
   ControllerConfig,
   ControllerInstance,
   InterceptorCB,
+  MiddlewareCB,
   RouteContext,
 } from '@types';
 import { executeControllerMethod, getControllerMethods, matchRoute } from '@utils';
@@ -141,7 +142,6 @@ export function Controller(
 
           return { status, data: appResponse };
         } catch (err) {
-          console.error(err);
           throw err;
         }
       }
@@ -166,6 +166,7 @@ export function Controller(
           response,
           middlewareChain: [],
           interceptorChain: [],
+          errorHandlerChain: [Reflect.getMetadata(CATCH, proto)],
           subPath: Reflect.getMetadata(ROUTE_PREFIX, proto) || '',
         };
 
@@ -183,7 +184,7 @@ export function Controller(
             routePrefix: Reflect.getMetadata(ROUTE_PREFIX, SubController.prototype) || '',
             middlewares: Reflect.getMetadata(MIDDLEWARES, SubController.prototype) || [],
             interceptor: Reflect.getMetadata(INTERCEPTOR, SubController.prototype),
-            errorHandler: Reflect.getMetadata(CATCH, SubController.prototype),
+            errorHandler: Reflect.getMetadata(CATCH, SubController),
             subControllers: Reflect.getMetadata(CONTROLLERS, SubController.prototype) || [],
           };
 
@@ -200,6 +201,9 @@ export function Controller(
               controllerMeta: subMeta,
               path,
               middlewareChain: [...context.middlewareChain, ...controllerMeta.middlewares],
+              errorHandlerChain: [...context.errorHandlerChain, subMeta.errorHandler].filter(
+                (el) => !!el,
+              ),
               interceptorChain: [...context.interceptorChain, controllerMeta.interceptor].filter(
                 (el) => !!el,
               ),
@@ -222,13 +226,13 @@ export function Controller(
             ...methodMiddlewares,
           ];
 
-          let payload = { ...context.appRequest, params: pathParams };
+          let payload: AppRequest = { ...context.appRequest, params: pathParams };
           for (const mw of allMiddlewares) {
             const mwResult = await mw(payload, context.request, context.response);
-            payload = { ...payload, ...mwResult };
+            payload = mwResult ?? payload;
           }
 
-          return this.getResponse({
+          let apiResponse = await this.getResponse({
             interceptors: [...context.interceptorChain, controllerMeta.interceptor].filter(
               (el) => !!el,
             ),
@@ -237,12 +241,17 @@ export function Controller(
             payload,
             response: context.response,
             request: context.request,
-          }).catch((error) => {
-            if (controllerMeta.errorHandler) {
-              return controllerMeta.errorHandler(error, context.request, context.response);
+          }).catch((err) => err);
+
+          const isError = !OK_STATUSES.includes(apiResponse.status);
+
+          if (isError) {
+            for (const handler of context.errorHandlerChain?.reverse() || []) {
+              apiResponse = handler(apiResponse);
             }
-            return error;
-          });
+          }
+
+          return apiResponse;
         }
 
         return null;
@@ -272,8 +281,8 @@ export function Controller(
           name: string;
           pathParams: Record<string, string>;
           priority: number;
-          methodMiddlewares: any[];
-          methodInterceptors: any[];
+          methodMiddlewares: MiddlewareCB[];
+          methodInterceptors: InterceptorCB[];
         }> = [];
 
         for (const name of propertyNames) {
