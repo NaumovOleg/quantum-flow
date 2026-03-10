@@ -1,4 +1,5 @@
 export * from './controller';
+export * from './cors';
 export * from './endpoint';
 export * from './helper';
 export * from './lambda';

@@ -6,6 +6,7 @@
  */
 export {
   AppRequest,
+  CORSConfig,
   EndpointResponse,
   ErrorCB,
   HttpError,

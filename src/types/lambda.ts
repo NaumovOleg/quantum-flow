@@ -62,6 +62,12 @@ export interface LambdaRequest {
   url: URL;
   event: NormalizedEvent;
   _startTime: number;
+
+  routeInfo?: {
+    controller: any;
+    methodName: string;
+    pathParams: Record<string, string>;
+  };
 }
 
 export interface LambdaResponse {

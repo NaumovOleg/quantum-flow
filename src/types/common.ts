@@ -44,14 +44,6 @@ export type EndpointResponse<T = any> = {
   error?: any;
 };
 
-export type AxiosQuery = {
-  data?: { [key: string]: any };
-  headers?: { [key: string]: any };
-  params?: { [key: string]: any };
-  url: string;
-  method: 'POST' | 'GET' | 'PATCH' | 'DELETE';
-};
-
 export interface IController {
   handleRequest: Router;
 }

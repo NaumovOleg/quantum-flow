@@ -218,7 +218,7 @@ export function Controller(
         const routeMatch = this.findRouteInController(controllerInstance, subPath, path, method);
 
         if (routeMatch) {
-          const { name, pathParams, methodMiddlewares, methodInterceptors } = routeMatch;
+          const { name, pathParams, methodMiddlewares } = routeMatch;
 
           const allMiddlewares = [
             ...context.middlewareChain,
@@ -282,7 +282,6 @@ export function Controller(
           pathParams: Record<string, string>;
           priority: number;
           methodMiddlewares: MiddlewareCB[];
-          methodInterceptors: InterceptorCB[];
         }> = [];
 
         for (const name of propertyNames) {
@@ -323,7 +322,6 @@ export function Controller(
               pathParams,
               priority,
               methodMiddlewares: Reflect.getMetadata(MIDDLEWARES, prototype, name) || [],
-              methodInterceptors: Reflect.getMetadata(INTERCEPTOR, prototype, name) || [],
             });
           }
         }

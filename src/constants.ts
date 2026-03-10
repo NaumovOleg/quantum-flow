@@ -36,3 +36,5 @@ export const STATISTIC: Record<'controllers' | 'routes', number> = {
 export const INCREMENT_STATISTIC = (prop: 'controllers' | 'routes') => {
   STATISTIC[prop] = STATISTIC[prop] + 1;
 };
+
+export const CORS_METADATA_KEY = 'cors:config';
