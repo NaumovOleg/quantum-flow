@@ -7,12 +7,20 @@ class DTO {
   meta: string;
 }
 
-@Controller({ prefix: 'metadata' })
+@Controller({
+  prefix: 'metadata',
+  middlewares: [
+    (req) => {
+      return req;
+    },
+  ],
+})
 export class UserMetadata {
   @GET('/:meta')
   async getUserMetadata(@Params(DTO, 'meta') params: any) {
     return params;
   }
+
   @POST('/:meta')
   async createMeta(@Multipart() mult: any, @Body() body: any, @Params(DTO, 'meta') params: any) {
     return { body, params };

@@ -10,6 +10,7 @@ export function Server(config: ServerConfig = {}) {
       ...config,
       controllers: [...(existingConfig.controllers || []), ...(config.controllers || [])],
       middlewares: [...(existingConfig.middlewares ?? []), ...(config.middlewares ?? [])],
+      cors: config.cors,
       interceptors: existingConfig.interceptor ?? config.interceptor,
     };
 

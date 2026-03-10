@@ -3,6 +3,7 @@ import { IsString } from 'class-validator';
 import {
   Body,
   Controller,
+  CORS,
   Headers,
   InjectWS,
   IWebSocketService,
@@ -35,6 +36,7 @@ class DTO {
     return { data, intercepted: true };
   },
 })
+@CORS({ origin: '*' })
 export class User {
   @Status(201)
   @PUT(':id')

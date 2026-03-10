@@ -1,6 +1,8 @@
+import { CORS_METADATA } from '@constants';
 import { AppRequest, LambdaApp, NormalizedEvent } from '@types';
-import { normalizeEvent } from '@utils';
+import { handleCORS, normalizeEvent } from '@utils';
 import { APIGatewayProxyResult, APIGatewayProxyResultV2, Context, Handler } from 'aws-lambda';
+import { LRequest, LResponse } from './helpers';
 
 export class LambdaAdapter {
   static createHandler(Controller: new (...args: any[]) => LambdaApp): Handler {
@@ -12,18 +14,39 @@ export class LambdaAdapter {
       }
 
       try {
+        const cors = Reflect.getMetadata(CORS_METADATA, instance);
+
         const eventType = this.getEventType(event);
         const normalizedEvent = normalizeEvent(event, eventType);
 
         const request = this.toRequest(normalizedEvent, context);
 
+        const lambdaRequest = new LRequest(request);
+        const lambdaResponse = new LResponse();
+
+        let handledCors = { permitted: true, continue: true };
+        if (cors) {
+          handledCors = handleCORS(request, lambdaResponse, cors);
+        }
+
+        if (!handledCors.permitted) {
+          return this.toLambdaResponse(
+            { status: 403, message: 'CORS: Origin not allowed' },
+            lambdaRequest,
+            lambdaResponse,
+            eventType,
+          );
+        }
+        if (!handledCors.continue && handledCors.permitted) {
+          return this.toLambdaResponse({ status: 204 }, lambdaRequest, lambdaResponse, eventType);
+        }
         if (typeof instance.handleRequest !== 'function') {
           throw new Error('Controller must have handleRequest method');
         }
 
-        const response = await instance.handleRequest(request);
+        const response = await instance.handleRequest(request, lambdaRequest, lambdaResponse);
 
-        return this.toLambdaResponse(response, request, eventType);
+        return this.toLambdaResponse(response, lambdaRequest, lambdaResponse, eventType);
       } catch (error: any) {
         return this.handleError(error, event, context);
       }
@@ -125,15 +148,17 @@ export class LambdaAdapter {
   }
 
   private static toLambdaResponse(
-    response: any,
-    request: AppRequest,
+    appResponse: any,
+    request: LRequest,
+    res: LResponse,
     eventType: string,
   ): APIGatewayProxyResult | APIGatewayProxyResultV2 | any {
-    const statusCode = response.status || 200;
+    const statusCode = appResponse.status || 200;
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'X-Request-Id': request.requestId,
-      ...(response.headers || {}),
+      ...(appResponse.headers || {}),
+      ...res.headers,
     };
 
     const originHeader = request.headers['origin'] || request.headers['Origin'];
@@ -157,14 +182,14 @@ export class LambdaAdapter {
 
     const body = JSON.stringify({
       success: statusCode < 400,
-      data: response.data,
+      data: appResponse.data,
       timestamp: new Date().toISOString(),
     });
 
     const commonResponse = {
       statusCode,
       headers,
-      body: response.data,
+      body: appResponse.data,
       timestamp: new Date().toISOString(),
     };
 

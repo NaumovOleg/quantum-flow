@@ -1,5 +1,6 @@
 import { IncomingMessage, ServerResponse } from 'http';
 import { AppRequest, ErrorCB, HTTP_METHODS, InterceptorCB, MiddlewareCB } from './common';
+import { CORSConfig } from './cors';
 
 export type ControllerClass = { new (...args: any[]): any };
 export type ControllerInstance = InstanceType<ControllerClass>;
@@ -17,6 +18,7 @@ export type ControllerMetadata = {
   interceptor?: InterceptorCB;
   subControllers: ControllerClass[];
   errorHandler?: ErrorCB;
+  cors?: CORSConfig;
 };
 
 export interface ControllerConfig {
@@ -36,6 +38,7 @@ export type RouteContext = {
   response?: ServerResponse;
   middlewareChain: MiddlewareCB[];
   interceptorChain: InterceptorCB[];
+  corsChain: CORSConfig[];
   errorHandlerChain: ErrorCB[];
   subPath: string;
 };

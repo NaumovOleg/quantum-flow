@@ -1,16 +1,24 @@
 import {
+  CORS_METADATA,
+  ENDPOINT,
+  MIDDLEWARES,
+  PARAM_METADATA_KEY,
+  TO_VALIDATE,
+  WS_SERVICE_KEY,
+} from '@constants';
+import {
   ControllerInstance,
   ControllerMethods,
+  CORSConfig,
   HTTP_METHODS,
   MiddlewareCB,
   ParamMetadata,
 } from '@types';
-import { MultipartProcessor } from '@utils';
-import { WebSocketService } from '../app/http/websocket/WebsocketService';
-import { validate } from './validate';
-
-import { ENDPOINT, MIDDLEWARES, PARAM_METADATA_KEY, TO_VALIDATE, WS_SERVICE_KEY } from '@constants';
 import { IncomingMessage, ServerResponse } from 'http';
+import { WebSocketService } from '../app/http/websocket/WebsocketService';
+import { matchRoute } from './helper';
+import { MultipartProcessor } from './multipart';
+import { validate } from './validate';
 
 const getBodyAndMultipart = (payload: any) => {
   let body = payload.body;
@@ -146,4 +154,85 @@ export const getControllerMethods = (controller: ControllerInstance) => {
   }
 
   return methods.sort((a, b) => (a.httpMethod === HTTP_METHODS.USE ? 1 : -1));
+};
+
+export const getAllMethods = (obj: any): string[] => {
+  let methods = new Set<string>();
+  let current = Object.getPrototypeOf(obj);
+
+  while (current && current !== Object.prototype) {
+    Object.getOwnPropertyNames(current).forEach((name) => {
+      if (name !== 'constructor' && typeof current[name] === 'function') {
+        methods.add(name);
+      }
+    });
+    current = Object.getPrototypeOf(current);
+  }
+
+  return Array.from(methods);
+};
+
+export const findRouteInController = (
+  instance: any,
+  path: string,
+  route: string,
+  method: string,
+) => {
+  const prototype = Object.getPrototypeOf(instance);
+  const propertyNames = getAllMethods(instance);
+
+  const matches: Array<{
+    name: string;
+    pathParams: Record<string, string>;
+    priority: number;
+    methodMiddlewares: MiddlewareCB[];
+    cors?: CORSConfig;
+  }> = [];
+
+  for (const name of propertyNames) {
+    if (
+      [
+        'constructor',
+        'getResponse',
+        'routeWalker',
+        'getAllMethods',
+        'findRouteInController',
+      ].includes(name)
+    )
+      continue;
+
+    const endpointMeta = Reflect.getMetadata(ENDPOINT, prototype, name) || [];
+    if (endpointMeta.length === 0) continue;
+
+    const [httpMethod, routePattern] = endpointMeta;
+
+    if (httpMethod !== method && httpMethod !== 'USE') {
+      continue;
+    }
+
+    if (httpMethod === 'USE') {
+      let useRoute = route.split('/');
+      useRoute.pop();
+      route = useRoute.join('/');
+    }
+    const current = [path, routePattern].join('/').replace(/\/+/g, '/');
+
+    const pathParams = matchRoute(current, route);
+
+    if (pathParams) {
+      const priority = httpMethod === 'USE' ? 0 : Object.keys(pathParams).length > 0 ? 1 : 2;
+
+      matches.push({
+        name,
+        pathParams,
+        priority,
+        cors: Reflect.getMetadata(CORS_METADATA, prototype, name),
+        methodMiddlewares: Reflect.getMetadata(MIDDLEWARES, prototype, name) || [],
+      });
+    }
+  }
+
+  matches.sort((a, b) => b.priority - a.priority);
+
+  return matches[0] || null;
 };

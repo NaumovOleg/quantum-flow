@@ -54,8 +54,6 @@ export class MultipartProcessor {
         const fieldName = part.name || 'file';
         const contentType = this.getContentType(part);
 
-        console.log(part);
-
         const fileData: MultipartFile = {
           fieldname: fieldName,
           filename: part.filename,

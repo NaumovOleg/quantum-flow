@@ -17,6 +17,7 @@ export const resolveConfig = (configOrClass?: any): ServerConfig => {
       ...decoratorConfig,
       errorHandler: decoratorConfig.errorHandler ?? errorHandler,
       interceptors,
+      cors: decoratorConfig.cors,
       controllers: [...controllers, ...(decoratorConfig.controllers || [])],
     };
   } else if (configOrClass && typeof configOrClass === 'object') {

@@ -37,4 +37,4 @@ export const INCREMENT_STATISTIC = (prop: 'controllers' | 'routes') => {
   STATISTIC[prop] = STATISTIC[prop] + 1;
 };
 
-export const CORS_METADATA_KEY = 'cors:config';
+export const CORS_METADATA = 'cors:config';

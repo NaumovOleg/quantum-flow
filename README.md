@@ -41,7 +41,8 @@ import {
   Request,
   Response,
   Status,
-  USE
+  USE,
+  CORS
 } from 'quantum-flow/core';
 import {IsString} from  'class-validator'
 
@@ -58,10 +59,12 @@ class UserDto {
     return { data, intercepted: true };
   },
 })
+@CORS({ origin: '*' })
 @Catch((err) => ({ status: 500, err }))
 export class User {
   @Status(201)
   @PUT(':id',[...middlewares])
+  @CORS({ origin: '*' })
   async createUser(
     @Body(UserDto) body: UserDto,
     @Query() query: any,
@@ -97,7 +100,7 @@ Use the `@Server` decorator with configuration options like port, host, controll
 ```typescript
 import { Server, Port, Host, Use, Catch, HttpServer } from 'quantum-flow/http';
 
-@Server({ controllers: [RootController] })
+@Server({ controllers: [RootController], cors: { origin: '*' } })
 @Port(3000)
 @Host('localhost')
 @Use((data) => data)
@@ -115,6 +118,7 @@ server.listen().catch(console.error);
 - Use `@Use` to apply middlewares.
 - Use `@Catch` to handle errors.
 - Use `@Port` and `@Host` to configure server port and host.
+- Use `@CORS` to configure cors.
 
 ## Request decorators
 
@@ -160,8 +164,6 @@ Enable WebSocket in the server configuration and register WebSocket controllers.
 export class Socket {
   @OnConnection()
   onConnection(event: WebSocketEvent) {
-    console.log(`✅ Connected: ${event.client.id}`);
-
     // Send greeting ONLY to this client
     event.client.socket.send(
       JSON.stringify({
@@ -181,8 +183,6 @@ export class Socket {
     // The message is ALREADY automatically broadcast to all!
 
     const msg = event.message?.data;
-    console.log(`💬 Message in chat: ${msg?.text}`);
-
     // You can add logic, but no need to broadcast
     if (msg?.text.includes('bad')) {
       // If return empty, the message will not be sent
@@ -197,7 +197,6 @@ export class Socket {
    */
   @Subscribe('news')
   onNewsMessage(event: WebSocketEvent) {
-    console.log(`📰 News: ${event.message?.data.title}`);
     // Automatic broadcast to all subscribed to 'news'
   }
 
@@ -221,7 +220,6 @@ export class Socket {
   @OnMessage('subscribe')
   onSubscribe(event: WebSocketEvent) {
     const topic = event.message?.data.topic;
-    console.log(`📌 Client ${event.client.id} subscribed to ${topic}`);
 
     // Server will save the subscription automatically, no need to do anything!
     // Just confirm

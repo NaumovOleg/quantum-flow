@@ -1,6 +1,13 @@
 import { OK_STATUSES, STATISTIC, STOPPED } from '@constants';
 import { AppRequest, HTTP_METHODS, ResponseWithStatus, ServerConfig } from '@types';
-import { collectRawBody, ParseBody, ParseCookies, ParseQuery, resolveConfig } from '@utils';
+import {
+  collectRawBody,
+  handleCORS,
+  ParseBody,
+  ParseCookies,
+  ParseQuery,
+  resolveConfig,
+} from '@utils';
 import http, { IncomingMessage, ServerResponse } from 'http';
 import { Socket } from './Socket';
 import { WebSocketServer } from './websocket/WebsocketServer';
@@ -111,7 +118,24 @@ export class HttpServer extends Socket {
     try {
       const request = await this.createRequest(req);
 
+      let handledCors = { permitted: true, continue: true };
+      if (this.config.cors) {
+        handledCors = handleCORS(request, res, this.config.cors);
+      }
+
+      if (!handledCors.permitted) {
+        return this.sendResponse(
+          res,
+          { status: 403, message: 'CORS: Origin not allowed' },
+          startTime,
+        );
+      }
+      if (!handledCors.continue && handledCors.permitted) {
+        return this.sendResponse(res, { status: 204 }, startTime);
+      }
+
       let appRequest = await this.applyMiddlewares(request, req, res);
+
       let data = await this.findController(appRequest, req, res);
 
       const isError = !OK_STATUSES.includes(data.status);

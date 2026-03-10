@@ -2,7 +2,7 @@
 import {
   CATCH,
   CONTROLLERS,
-  ENDPOINT,
+  CORS_METADATA,
   INCREMENT_STATISTIC,
   INTERCEPTOR,
   MIDDLEWARES,
@@ -16,10 +16,14 @@ import {
   ControllerConfig,
   ControllerInstance,
   InterceptorCB,
-  MiddlewareCB,
   RouteContext,
 } from '@types';
-import { executeControllerMethod, getControllerMethods, matchRoute } from '@utils';
+import {
+  executeControllerMethod,
+  findRouteInController,
+  getControllerMethods,
+  handleCORS,
+} from '@utils';
 import { IncomingMessage, ServerResponse } from 'http';
 import 'reflect-metadata';
 
@@ -158,6 +162,7 @@ export function Controller(
             interceptor: Reflect.getMetadata(INTERCEPTOR, proto),
             subControllers: Reflect.getMetadata(CONTROLLERS, proto) || [],
             errorHandler: Reflect.getMetadata(CATCH, proto),
+            cors: Reflect.getMetadata(CORS_METADATA, proto),
           },
           path: (appRequest.url.pathname ?? '').replace(/^\/+/g, ''),
           method: appRequest.method.toUpperCase(),
@@ -166,6 +171,7 @@ export function Controller(
           response,
           middlewareChain: [],
           interceptorChain: [],
+          corsChain: [Reflect.getMetadata(CORS_METADATA, proto)],
           errorHandlerChain: [Reflect.getMetadata(CATCH, proto)],
           subPath: Reflect.getMetadata(ROUTE_PREFIX, proto) || '',
         };
@@ -186,6 +192,7 @@ export function Controller(
             interceptor: Reflect.getMetadata(INTERCEPTOR, SubController.prototype),
             errorHandler: Reflect.getMetadata(CATCH, SubController),
             subControllers: Reflect.getMetadata(CONTROLLERS, SubController.prototype) || [],
+            cors: Reflect.getMetadata(CORS_METADATA, SubController.prototype) || [],
           };
 
           const fullSubPath = [subPath, subMeta.routePrefix]
@@ -207,6 +214,7 @@ export function Controller(
               interceptorChain: [...context.interceptorChain, controllerMeta.interceptor].filter(
                 (el) => !!el,
               ),
+              corsChain: [...context.corsChain, subMeta.cors].filter((el) => !!el),
             });
 
             if (subResult && subResult.status !== 404) {
@@ -215,10 +223,33 @@ export function Controller(
           }
         }
 
-        const routeMatch = this.findRouteInController(controllerInstance, subPath, path, method);
+        const routeMatch = findRouteInController(controllerInstance, subPath, path, method);
 
         if (routeMatch) {
-          const { name, pathParams, methodMiddlewares } = routeMatch;
+          const { name, pathParams, methodMiddlewares, cors } = routeMatch;
+
+          let payload: AppRequest = { ...context.appRequest, params: pathParams };
+
+          const handledCors = context.corsChain
+            .concat(cors ?? [])
+            .flat()
+            .reduce(
+              (acc, conf) => {
+                const cors = handleCORS(payload, context.response, conf);
+                return {
+                  permitted: acc.permitted && cors.permitted,
+                  continue: acc.continue && cors.continue,
+                };
+              },
+              { permitted: true, continue: true },
+            );
+
+          if (!handledCors.permitted) {
+            return { status: 403, message: 'CORS: Origin not allowed' };
+          }
+          if (!handledCors.continue && handledCors.permitted) {
+            return { status: 204 };
+          }
 
           const allMiddlewares = [
             ...context.middlewareChain,
@@ -226,7 +257,6 @@ export function Controller(
             ...methodMiddlewares,
           ];
 
-          let payload: AppRequest = { ...context.appRequest, params: pathParams };
           for (const mw of allMiddlewares) {
             const mwResult = await mw(payload, context.request, context.response);
             payload = mwResult ?? payload;
@@ -255,80 +285,6 @@ export function Controller(
         }
 
         return null;
-      }
-
-      getAllMethods(obj: any): string[] {
-        let methods = new Set<string>();
-        let current = Object.getPrototypeOf(obj);
-
-        while (current && current !== Object.prototype) {
-          Object.getOwnPropertyNames(current).forEach((name) => {
-            if (name !== 'constructor' && typeof current[name] === 'function') {
-              methods.add(name);
-            }
-          });
-          current = Object.getPrototypeOf(current);
-        }
-
-        return Array.from(methods);
-      }
-
-      findRouteInController(instance: any, path: string, route: string, method: string) {
-        const prototype = Object.getPrototypeOf(instance);
-        const propertyNames = this.getAllMethods(instance);
-
-        const matches: Array<{
-          name: string;
-          pathParams: Record<string, string>;
-          priority: number;
-          methodMiddlewares: MiddlewareCB[];
-        }> = [];
-
-        for (const name of propertyNames) {
-          if (
-            [
-              'constructor',
-              'getResponse',
-              'routeWalker',
-              'getAllMethods',
-              'findRouteInController',
-            ].includes(name)
-          )
-            continue;
-
-          const endpointMeta = Reflect.getMetadata(ENDPOINT, prototype, name) || [];
-          if (endpointMeta.length === 0) continue;
-
-          const [httpMethod, routePattern] = endpointMeta;
-
-          if (httpMethod !== method && httpMethod !== 'USE') {
-            continue;
-          }
-
-          if (httpMethod === 'USE') {
-            let useRoute = route.split('/');
-            useRoute.pop();
-            route = useRoute.join('/');
-          }
-          const current = [path, routePattern].join('/').replace(/\/+/g, '/');
-
-          const pathParams = matchRoute(current, route);
-
-          if (pathParams) {
-            const priority = httpMethod === 'USE' ? 0 : Object.keys(pathParams).length > 0 ? 1 : 2;
-
-            matches.push({
-              name,
-              pathParams,
-              priority,
-              methodMiddlewares: Reflect.getMetadata(MIDDLEWARES, prototype, name) || [],
-            });
-          }
-        }
-
-        matches.sort((a, b) => b.priority - a.priority);
-
-        return matches[0] || null;
       }
     };
   };
