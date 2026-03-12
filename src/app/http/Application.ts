@@ -9,6 +9,7 @@ import {
   ParseQuery,
   resolveConfig,
   sanitizeRequest,
+  stringifyError,
 } from '@utils';
 import http, { IncomingMessage, ServerResponse } from 'http';
 import { WebSocketServer } from '../../ws/server';
@@ -275,8 +276,11 @@ export class HttpServer {
       data: {
         message: error.message || 'Internal Server Error',
         errors: error.errors || [],
+        stack: error.stack,
       },
     };
+
+    console.log(errorResponse);
 
     if (!this.config.errorHandler) {
       return this.sendResponse(response, errorResponse, startTime);
@@ -285,12 +289,13 @@ export class HttpServer {
     try {
       const intercepted = await this.config.errorHandler(error, request, response);
 
-      if (typeof intercepted === 'object') {
+      const { status = 500, ...rest } = intercepted;
+      if (OK_STATUSES.includes(status)) {
         errorResponse.status = intercepted.status ?? errorResponse.status;
-        errorResponse.data = intercepted.message ?? intercepted.data ?? intercepted;
-      } else {
-        errorResponse.data = intercepted;
+        errorResponse.data = rest;
       }
+      errorResponse.status = intercepted.status ?? errorResponse.status;
+      errorResponse.data = !intercepted.message ? intercepted : stringifyError(intercepted);
     } catch (cathed) {
       Object.assign(errorResponse, cathed);
     }
