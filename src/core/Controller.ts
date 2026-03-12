@@ -139,7 +139,8 @@ export function Controller(
         };
 
         const result = await this.routeWalker(context, request, response);
-        return result || { status: 404, message: 'Method Not Found' };
+
+        return result === null ? { status: 404, message: 'Method Not Found' } : result;
       };
 
       async routeWalker(
@@ -254,6 +255,10 @@ export function Controller(
               response: response,
               request: request,
             }).catch((err) => err);
+
+            if (!apiResponse) {
+              return { status: 200 };
+            }
 
             const isError = !OK_STATUSES.includes(apiResponse.status);
 

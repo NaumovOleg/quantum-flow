@@ -291,7 +291,7 @@ export const getResponse = async (data: {
       !isError && classOkStatus && (data.response.statusCode = classOkStatus);
     }
 
-    return { status: data.response.statusCode, data: appResponse };
+    return { status: data.response.statusCode, data: appResponse?.data ?? appResponse };
   } catch (err) {
     throw err;
   }

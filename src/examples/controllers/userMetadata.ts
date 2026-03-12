@@ -55,7 +55,5 @@ export class UserMetadata {
     @Body(DTO) body: any,
     @Params('meta') params: any,
     @InjectWS() ws: IWebSocketService,
-  ) {
-    return { body, params };
-  }
+  ) {}
 }

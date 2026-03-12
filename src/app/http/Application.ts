@@ -170,7 +170,7 @@ export class HttpServer {
       if (isError) {
         return this.handleError(data, request, response, startTime);
       }
-      if (this.config.interceptor) {
+      if (this.config.interceptor && data) {
         data = await this.config.interceptor(data, request, response);
       }
 
@@ -227,7 +227,11 @@ export class HttpServer {
       const instance = new ControllerClass();
       if (typeof instance.handleRequest === 'function') {
         const data = await instance.handleRequest(request, response);
-        if (data && data.status !== 404) {
+
+        if (!data) {
+          return undefined;
+        }
+        if (data?.status !== 404) {
           return data;
         }
       }
@@ -244,7 +248,6 @@ export class HttpServer {
     data: any,
     startTime: number,
   ): Promise<void> {
-    const response = data?.data !== undefined ? data.data : data;
     if (res.headersSent) return;
 
     if (!res.getHeader('Content-Type')) {
@@ -262,7 +265,7 @@ export class HttpServer {
     res.setHeader('X-Response-Time', `${Date.now() - startTime}ms`);
     res.statusCode = data.status ?? 200;
 
-    res.end(JSON.stringify(response));
+    res.end(JSON.stringify(data.data));
   }
 
   private async handleError(
@@ -280,26 +283,22 @@ export class HttpServer {
       },
     };
 
-    console.log(errorResponse);
-
     if (!this.config.errorHandler) {
-      return this.sendResponse(response, errorResponse, startTime);
+      return this.sendResponse(response, stringifyError(errorResponse), startTime);
     }
 
     try {
       const intercepted = await this.config.errorHandler(error, request, response);
 
-      const { status = 500, ...rest } = intercepted;
-      if (OK_STATUSES.includes(status)) {
-        errorResponse.status = intercepted.status ?? errorResponse.status;
-        errorResponse.data = rest;
+      let data = intercepted.data ?? intercepted;
+      if (data instanceof Error) {
+        data = stringifyError(data);
       }
       errorResponse.status = intercepted.status ?? errorResponse.status;
-      errorResponse.data = !intercepted.message ? intercepted : stringifyError(intercepted);
+      errorResponse.data = data;
     } catch (cathed) {
-      Object.assign(errorResponse, cathed);
+      Object.assign(errorResponse, stringifyError(cathed));
     }
-
     return this.sendResponse(response, errorResponse, startTime);
   }
 }

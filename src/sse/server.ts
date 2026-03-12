@@ -89,7 +89,6 @@ export class SSEServer implements ISSEServer {
     for (const controller of this.controllers) {
       if (controller.sse.handlers && controller.sse.handlers[eventType]) {
         for (const handler of controller.sse.handlers[eventType]) {
-          console.log(handler);
           await handler.fn(event).catch(console.log);
         }
       }

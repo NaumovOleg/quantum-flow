@@ -1,6 +1,5 @@
 import { Controller } from 'quantum-flow/core';
 import { Server } from 'quantum-flow/http';
-import { Catch } from 'quantum-flow/middlewares';
 import { Socket } from './controllers/socket';
 import { User } from './controllers/user';
 
@@ -13,8 +12,6 @@ export class Root {}
 
 @Server({
   controllers: [Root],
-})
-@Catch(function mmmmmm(err) {
-  return err;
+  sse: { enabled: true },
 })
 export class App {}
