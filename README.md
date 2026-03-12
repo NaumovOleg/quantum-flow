@@ -139,7 +139,8 @@ server.listen().catch(console.error);
 - Use `@Multipart` for handling multipart/form-data requests.
 - Use `@Request` to access the original request object.
 - Use `@Response` to access the original object.
-- Use `@InjectWS` to access the WebsocketService.
+- Use `@InjectWS` to access the websocket service.
+- Use `@InjectSSE()` to access the server-side-event service.
 
 # AWS Lambda Support
 
@@ -168,6 +169,18 @@ export const handler = LambdaAdapter.createHandler(RootController);
 # WebSocket Support
 
 Enable WebSocket in the server configuration and register WebSocket controllers.
+
+## Enabling WebSocket Support in Server
+
+To enable SSE support, configure your HTTP server with the `sse: true` option and register controllers that use SSE.
+
+Example server setup:
+
+```typescript
+@Server( {websocket: { enabled: true, path: '/ws' } })
+```
+
+## Injecting WebSocket events in Controller
 
 ```typescript
 import { OnConnection, Subscribe, OnMessage } from 'quantum-flow/ws';
@@ -232,65 +245,127 @@ export class Socket {
 }
 ```
 
-# Decorators
+# Server-Sent Events (SSE) Support
 
-### Use
+The framework supports Server-Sent Events (SSE) to enable real-time, one-way communication from the server to clients over HTTP.
 
-Class decorator to add global middlewares to the server.
-Should be used only with @Server decorator
+## Defining SSE Controllers
 
-```typescript
-@Use(middleware)
-class App {}
-```
+Use the `@Controller` decorator to define controllers with a `prefix` and optionally include sub-controllers. This allows modular organization of your API endpoints.
 
-### Catch
-
-Class decorator to set a global error handler for the server.
+Example:
 
 ```typescript
-@Catch((error) => {
-  return { message: 'Internal Server Error' };
+@Controller({
+  prefix: 'user',
+  controllers: [UserMetadata],
+  middlewares: [function UserGlobalUse() {}],
+  interceptor: (data, req, res) => {
+    return { data, intercepted: true };
+  },
 })
-class App {}
+export class User {}
 ```
 
-### Port
+## Injecting SSE Service
 
-Class decorator to set the server port.
+Use the `@InjectSSE` decorator in your controller methods to create and manage SSE connections. This service allows sending events to connected clients.
 
-```typescript
-@Port(3000)
-class App {}
-```
-
-### Host
-
-Class decorator to set the server host.
+Example method using SSE:
 
 ```typescript
-@Host('localhost')
-class App {}
-```
+import { InjectSSE } from 'quantum-flow/sse';
 
-### Validate
+@Controller('user')
+export class UserMetadata {
+  @GET('/subscribesse')
+  async subscribesse(@InjectSSE() sse) {
+    const client = sse.createConnection(res);
 
-Method or class decorator to validate request parameters (query, body, params, headers) against a DTO class using class-validator.
+    sse.sendToClient(client.id, {
+      event: 'welcome message',
+      data: { message: 'Connected to notifications' },
+    });
 
-```typescript
-import { IsEmail } from 'class-validator';
-class UserDTO {
-  @IsEmail()
-  email: string;
-
-  @Length(6, 20)
-  password: string;
-}
-
-class UserController {
-  @POST('/')
-  async createUser(@Body(UserDTO) user: UserDTO, @Query() query) {
-    // Your logic here
+    return 'hellow';
   }
 }
 ```
+
+## SSE Event Decorators
+
+The framework provides decorators to handle SSE connection lifecycle events:
+
+- `@OnSSEConnection()`: Decorate a method to handle new SSE connections.
+- `@OnSSEError()`: Decorate a method to handle SSE errors.
+- `@OnSSEClose()`: Decorate a method to handle SSE connection closures.
+
+Example usage:
+
+```typescript
+import { OnSSEConnection, OnSSEError, OnSSEClose } from 'quantum-flow/sse';
+
+@Controller('user')
+export class User {
+  @OnSSEConnection()
+  async onsseconnection(@Request() req: any, @Response() res: any) {
+    console.log('SSE connection established');
+    return req.body;
+  }
+
+  @OnSSEError()
+  async onsseerror(@Request() req: any, @Response() res: any) {
+    console.log('SSE error occurred');
+    return req.body;
+  }
+
+  @OnSSEClose()
+  async onsseclose(@Request() req: any, @Response() res: any) {
+    console.log('SSE connection closed');
+    return req.body;
+  }
+}
+```
+
+## Sending SSE Events
+
+Use the injected SSE service to send events to clients. You can send events to all clients or specific clients by ID.
+
+Example:
+
+```typescript
+sse.sendToClient(clientId, {
+  event: 'eventName',
+  data: { key: 'value' },
+});
+```
+
+## Enabling SSE Support in Server
+
+To enable SSE support, configure your HTTP server with the `sse: true` option and register controllers that use SSE.
+
+Example server setup:
+
+```typescript
+import { Server, HttpServer } from 'quantum-flow/http';
+import { User, UserMetadata } from './controllers';
+
+@Server({
+  controllers: [User, UserMetadata],
+  sse: { enabled: true },
+})
+class App {}
+
+const server = new HttpServer(App);
+server.listen().catch(console.error);
+```
+
+## Summary
+
+- Use `@Controller` with `prefix` and `controllers` to organize your API.
+- Use `@InjectSSE` to create SSE connections in controller methods.
+- Use the SSE service's `send` method to push events to clients.
+- Use `@OnSSEConnection`, `@OnSSEError`, and `@OnSSEClose` decorators to handle SSE lifecycle events.
+- Enable SSE in your server configuration and register SSE controllers.
+
+This setup allows you to build real-time, event-driven APIs using Server-Sent Events in a clean and modular way.
