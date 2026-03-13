@@ -11,14 +11,13 @@ export const resolveConfig = (configOrClass?: any): ServerConfig => {
     const interceptors = Reflect.getMetadata(INTECEPT, configOrClass);
     const middlewares = Reflect.getMetadata(USE_MIDDLEWARE, configOrClass);
     const sanitizers = Reflect.getMetadata(SANITIZE, configOrClass.prototype) || [];
-
     config = {
       port: 3000,
       host: 'localhost',
       ...decoratorConfig,
       errorHandler: decoratorConfig.errorHandler ?? errorHandler,
       interceptors: (interceptors ?? []).filter((el: any) => !!el),
-      middlewares: decoratorConfig.middlewares.concat(middlewares).filter((el: any) => !!el),
+      middlewares: decoratorConfig.middlewares.concat(middlewares).filter((el: any) => !!el) ?? [],
       cors: decoratorConfig.cors,
       controllers: (decoratorConfig.controllers ?? []).filter((el: any) => !!el),
       sanitizers,

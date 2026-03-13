@@ -1,6 +1,7 @@
 import { ErrorCB, InterceptorCB, MiddlewareCB } from './common';
 import { CORSConfig } from './cors';
 import { SanitizerConfig } from './sanitize';
+import { StaticConfig } from './static';
 
 export interface ServerConfig {
   port?: number;
@@ -11,6 +12,7 @@ export interface ServerConfig {
   controllers?: (new (...args: any[]) => any)[];
   cors?: CORSConfig;
   sanitizers?: SanitizerConfig[];
+  statics?: StaticConfig[];
   websocket?: {
     enabled: boolean;
     path?: string;

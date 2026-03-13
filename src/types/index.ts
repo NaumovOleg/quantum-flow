@@ -6,4 +6,5 @@ export * from './lambda';
 export * from './multipart';
 export * from './sanitize';
 export * from './sse';
+export * from './static';
 export * from './websocket';

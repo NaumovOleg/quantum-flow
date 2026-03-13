@@ -1,5 +1,12 @@
-import { CONTROLLERS, OK_STATUSES, STATISTIC } from '@constants';
-import { AppRequest, ControllerType, HTTP_METHODS, ServerConfig } from '@types';
+import { CONTROLLERS, OK_STATUSES, STATIC_METADATA_KEY, STATISTIC } from '@constants';
+import {
+  AppRequest,
+  ControllerType,
+  HTTP_METHODS,
+  MiddlewareCB,
+  ServerConfig,
+  StaticConfig,
+} from '@types';
 import {
   collectRawBody,
   getErrorType,
@@ -11,13 +18,13 @@ import {
   resolveConfig,
   sanitizeRequest,
   serializeError,
+  staticMiddleware,
 } from '@utils';
 import http, { IncomingMessage, ServerResponse } from 'http';
-import { WebSocketServer } from '../../ws/server';
-import { WebSocketService } from '../../ws/service';
-
 import { SSEServer } from '../../sse/server';
 import { SSEService } from '../../sse/service';
+import { WebSocketServer } from '../../ws/server';
+import { WebSocketService } from '../../ws/service';
 
 export class HttpServer {
   private app: http.Server;
@@ -25,21 +32,29 @@ export class HttpServer {
   private isRunning: boolean = false;
   private sse?: SSEServer;
   private websocket?: WebSocketServer;
+  private allControllers: (new (...args: any[]) => any)[];
 
   constructor(configOrClass: new (...args: any[]) => any) {
     this.config = resolveConfig(configOrClass);
 
     const app = http.createServer(this.requestHandler.bind(this));
-    const controllers = this.getAllControllers(this.config.controllers);
+
+    for (const st of this.config.statics ?? []) {
+      const staticMw = staticMiddleware(st.path, st.options);
+      this.config.middlewares?.unshift(staticMw as MiddlewareCB);
+    }
+
+    this.allControllers = this.getAllControllers(this.config.controllers);
+    this.setupStaticFiles();
     if (this.config.websocket?.enabled) {
       this.websocket = new WebSocketServer(app, { path: this.config.websocket.path });
-      this.websocket.registerControllers(controllers);
+      this.websocket.registerControllers(this.allControllers);
       WebSocketService.getInstance().initialize(this.websocket!);
     }
 
     if (this.config.sse?.enabled) {
       this.sse = new SSEServer();
-      this.sse.registerControllers(controllers);
+      this.sse.registerControllers(this.allControllers);
       SSEService.getInstance().initialize(this.sse);
     }
 
@@ -165,10 +180,14 @@ export class HttpServer {
       }
 
       await this.beforeRequest(request, response);
+
+      if (response.headersSent) {
+        return;
+      }
       let controllerResponse = await this.runController(request, response);
 
       if (!controllerResponse.routeMatch) {
-        return this.sendResponse(response, { status: 404, message: 'ssss' }, Date.now());
+        return this.sendResponse(response, { status: 404, data: 'Route not found' }, Date.now());
       }
 
       const isError =
@@ -258,6 +277,7 @@ export class HttpServer {
     if (res.headersSent) return;
 
     const { status, data } = responseData;
+
     if (!res.getHeader('Content-Type')) {
       res.setHeader('Content-Type', 'application/json');
     }
@@ -291,5 +311,19 @@ export class HttpServer {
     } catch (cathed) {}
 
     return this.sendResponse(response, { data: serialized }, startTime);
+  }
+
+  private setupStaticFiles() {
+    const staticConfigs: StaticConfig[] = [];
+
+    for (const ControllerClass of this.allControllers) {
+      // console.log(this.allControllers);
+      const classStatic = Reflect.getMetadata(STATIC_METADATA_KEY, ControllerClass);
+      if (classStatic) {
+        staticConfigs.push(classStatic);
+      }
+    }
+
+    // console.log('aaaaaaaaaaaaaaaaaaddddddddd', staticConfigs, this.config.controllers);
   }
 }

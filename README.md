@@ -360,6 +360,42 @@ const server = new HttpServer(App);
 server.listen().catch(console.error);
 ```
 
+## Enabling static files
+
+To enable serving static files, use statics option.
+
+Example server setup:
+
+```typescript
+import { Server, HttpServer } from 'quantum-flow/http';
+import { User, UserMetadata } from './controllers';
+
+@Server({
+  static: [
+    {
+      path: path.join(__dirname, './public'),
+      options: {
+        index: 'index.html',
+        extensions: ['html', 'htm', 'css', 'js'],
+        maxAge: 86400,
+        immutable: true,
+        dotfiles: 'deny',
+        fallthrough: false,
+        setHeaders: (res, filePath, stats) => {
+          if (filePath.endsWith('.css')) {
+            res.setHeader('Content-Type', 'text/css');
+          }
+        },
+      },
+    },
+  ],
+})
+class App {}
+
+const server = new HttpServer(App);
+server.listen().catch(console.error);
+```
+
 ## Summary
 
 - Use `@Controller` with `prefix` and `controllers` to organize your API.
