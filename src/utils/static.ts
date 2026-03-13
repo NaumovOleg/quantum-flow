@@ -140,7 +140,6 @@ export function staticMiddleware(root: string, options: StaticOptions = {}) {
   };
 }
 
-// Вспомогательная функция для определения MIME типа (если нет mime-types)
 function getMimeType(filePath: string): string {
   const ext = path.extname(filePath).toLowerCase();
   const mimes: Record<string, string> = {

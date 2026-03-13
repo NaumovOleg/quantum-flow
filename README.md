@@ -18,7 +18,7 @@ You can use controllers and server functionality by importing controllers and cr
 # Project Structure
 
 - `quantum-flow/http` - Main application source code for HTTP servers.
-- `quantum-flow/aws` - Main application source code AWS Lambda.
+- `quantum-flow/aws` - Main application source code for AWS Lambda.
 - `quantum-flow/core` - Core framework components like Controller and Endpoint.
 - `quantum-flow/middlewares` - Core middlewares to use within the application.
 - `quantum-flow/ws` - Websocket decorators.
@@ -45,9 +45,9 @@ import {
   USE,
 } from 'quantum-flow/core';
 import {IsString} from  'class-validator'
-import { Catch, Cors, Sanitize, Use } from 'quantum-flow/middlewares';
+import { Catch, Cors, Sanitize, Use, SANITIZER } from 'quantum-flow/middlewares';
 import { InjectWS } from 'quantum-flow/ws';
-
+// SANITIZER - prefilled Joi shema for  common data
 class UserDto {
   constructor() {}
   @IsString()
@@ -371,7 +371,7 @@ import { Server, HttpServer } from 'quantum-flow/http';
 import { User, UserMetadata } from './controllers';
 
 @Server({
-  static: [
+  statics: [
     {
       path: path.join(__dirname, './public'),
       options: {

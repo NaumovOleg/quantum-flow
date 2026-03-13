@@ -33,7 +33,6 @@ import {
   handleCORS,
 } from '@utils';
 import { ServerResponse } from 'http';
-import httErrors from 'http-errors';
 import 'reflect-metadata';
 
 /**
@@ -210,7 +209,9 @@ export function Controller(
             );
 
           if (!handledCors.permitted) {
-            data = httErrors[403]('Cors: Origin not allowed');
+            response.statusCode = 403;
+            data = 'Cors: Origin not allowed';
+            return { routeMatch, data };
           }
           if (!handledCors.continue && handledCors.permitted) {
             response.statusCode = 204;

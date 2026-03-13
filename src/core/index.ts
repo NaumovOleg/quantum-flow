@@ -20,6 +20,7 @@ export {
   WebSocketEvent,
   WebSocketMessage,
 } from '@types';
+export { SANITIZER } from '@utils';
 export * from './Controller';
 export * from './decorators';
 export * from './Endpoint';

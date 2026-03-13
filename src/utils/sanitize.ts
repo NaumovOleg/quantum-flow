@@ -1,7 +1,7 @@
 import { AppRequest, SanitizerConfig } from '@types';
 import * as Joi from 'joi';
 
-export const SanitizeSchemas = {
+export const SANITIZER = {
   string: {
     trim: () => Joi.string().trim(),
     email: () => Joi.string().email().trim().lowercase(),
@@ -49,6 +49,7 @@ export const SanitizeSchemas = {
       return sanitized;
     }, 'XSS sanitization'),
 };
+
 export function applyJoiSanitization(
   value: any,
   config: SanitizerConfig,
