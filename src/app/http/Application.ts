@@ -366,15 +366,11 @@ export class HttpServer extends Plugin implements IHttpServer {
 
     this.graphqlHandler = yoga;
 
-    this.use(async (req, res, next) => {
+    this.use(async (req, res) => {
       const path = this.config.graphql?.path ?? '/graphql';
-      console.log('========', req.requestUrl.pathname, this.config.graphql?.path);
       if (req.requestUrl.pathname?.startsWith(path)) {
-        const reps = await this.graphqlHandler(req, res);
-        console.log('========', reps);
-        return;
+        await this.graphqlHandler(req, res);
       }
-      return next();
     });
   }
 

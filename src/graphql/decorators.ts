@@ -4,7 +4,6 @@ import {
   GRAPHQL_INPUT_TYPE,
   GRAPHQL_MUTATION,
   GRAPHQL_QUERY,
-  GRAPHQL_RESOLVER,
   GRAPHQL_SUBSCRIPTION,
   GRAPHQL_TYPE,
 } from '@constants';
@@ -127,14 +126,5 @@ export function Subscription(returnType?: GraphQLType | (() => GraphQLType)): Me
       target,
       propertyKey,
     );
-  };
-}
-
-/**
- * Class decorator to mark a class as a GraphQL Resolver.
- */
-export function Resolver(): ClassDecorator {
-  return function (target: any) {
-    Reflect.defineMetadata(GRAPHQL_RESOLVER, true, target);
   };
 }

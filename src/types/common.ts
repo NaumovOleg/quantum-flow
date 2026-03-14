@@ -46,7 +46,7 @@ export type MiddlewareCB = (
   request: AppRequest,
   response: ServerResponse,
   next: (args?: any) => any,
-) => void | Promise<AppRequest> | AppRequest;
+) => void | Promise<AppRequest> | AppRequest | Promise<void> | void;
 
 export type InterceptorCB = (
   data: any,

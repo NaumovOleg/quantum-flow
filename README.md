@@ -66,9 +66,7 @@ class UserDto {
 @Catch((err) => ({ status: 500, err }))
 @Use(()=>{})
 @Sanitize({
-  schema: Joi.object({
-    name: Joi.string().trim().min(2).max(50).required(),
-  }),
+  schema: Joi.object({name: Joi.string().trim().min(2).max(50).required()}),
   action: 'both',
   options: { abortEarly: false },
   stripUnknown: true,
@@ -90,9 +88,7 @@ export class User {
   }
 
   @ANY([...middlewares])
-  async any(@Response() resp: any) {
-    ...
-  }
+  async any(@Response() resp: any) {...}
 }
 
 @Controller(api, [...middlewares])
@@ -281,13 +277,10 @@ export class UserMetadata {
   @GET('/subscribesse')
   async subscribesse(@InjectSSE() sse) {
     const client = sse.createConnection(res);
-
     sse.sendToClient(client.id, {
       event: 'welcome message',
       data: { message: 'Connected to notifications' },
     });
-
-    return 'hellow';
   }
 }
 ```
@@ -334,10 +327,7 @@ Use the injected SSE service to send events to clients. You can send events to a
 Example:
 
 ```typescript
-sse.sendToClient(clientId, {
-  event: 'eventName',
-  data: { key: 'value' },
-});
+sse.sendToClient(clientId, { event: 'eventName', data: { key: 'value' } });
 ```
 
 ## Enabling SSE Support in Server
@@ -425,6 +415,7 @@ const server = new HttpServer(App);
 server.usePlugun(metricsPlugin)
 server.listen().catch(console.error);
 
+// Lambda setup
 let connection;
 const dbConnectionPlugin: Plugin = {
   name: 'metric',
@@ -455,7 +446,16 @@ This project provides a set of decorators to define GraphQL schema and resolvers
 - `@Query(returnType?)`: Method decorator to define a GraphQL query resolver.
 - `@Mutation(returnType?)`: Method decorator to define a GraphQL mutation resolver.
 - `@Subscription(returnType?)`: Method decorator to define a GraphQL subscription resolver.
-- `@Resolver()`: Class decorator to mark a class as a GraphQL resolver.
+
+### Enabling
+
+```typescript
+@Server({
+  controllers: [GraphQlController],
+  graphql: { enabled: true, path: '/graphql' },
+})
+export class App {}
+```
 
 ### Example Usage
 
@@ -482,24 +482,15 @@ class CreateUserInput {
 
 @Controller('/graphql')
 export class GraphQlController {
-  private users: User[] = [
-    /* initial users */
-  ];
 
   @Query(User)
-  async getUser(@Arg('id', String, { required: true }) id: string) {
-    // implementation
-  }
+  async getUser(@Arg('id', String, { required: true }) id: string) {...}
 
   @Query(() => [User])
-  async getUsers() {
-    // implementation
-  }
+  async getUsers() {...}
 
   @Mutation(User)
-  async createUser(@Arg('input', CreateUserInput, { required: true }) input: CreateUserInput) {
-    // implementation
-  }
+  async createUser(@Arg('input', CreateUserInput, { required: true }) input: CreateUserInput) {...}
 
   // Additional queries and mutations...
 }

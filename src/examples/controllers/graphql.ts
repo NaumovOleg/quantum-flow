@@ -64,7 +64,6 @@ export class GraphQlController {
     },
   ];
 
-  // 🔍 Query: получить пользователя по ID
   @Query(User)
   async getUser(@Arg('id', String, { required: true }) id: string) {
     const user = this.users.find((u) => u.id === id);
@@ -73,14 +72,10 @@ export class GraphQlController {
     }
     return user;
   }
-
-  // 🔍 Query: получить всех пользователей
   @Query(() => [User])
   async getUsers() {
     return this.users;
   }
-
-  // ✏️ Mutation: создать пользователя
   @Mutation(User)
   async createUser(@Arg('input', CreateUserInput, { required: true }) input: CreateUserInput) {
     const newUser: User = {
@@ -94,7 +89,6 @@ export class GraphQlController {
     return newUser;
   }
 
-  // ✏️ Mutation: обновить пользователя
   @Mutation(User)
   async updateUser(
     @Arg('id', String, { required: true }) id: string,
@@ -113,7 +107,6 @@ export class GraphQlController {
     return this.users[userIndex];
   }
 
-  // ✏️ Mutation: удалить пользователя
   @Mutation(() => Boolean)
   async deleteUser(@Arg('id', String, { required: true }) id: string) {
     const userIndex = this.users.findIndex((u) => u.id === id);
@@ -125,7 +118,6 @@ export class GraphQlController {
     return true;
   }
 
-  // 🔍 Query: поиск пользователей по имени
   @Query(() => [User])
   async searchUsers(@Arg('name', String, { required: true }) name: string) {
     return this.users.filter((u) => u.name.toLowerCase().includes(name.toLowerCase()));

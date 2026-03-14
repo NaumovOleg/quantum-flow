@@ -32,7 +32,7 @@ export interface IHttpServer {
   controllers: ControllerClass[];
 
   /**
-   * Starts HTTP сервер
+   * Starts HTTP server
    * @param port - port
    * @param host - host
    * @returns Promise with HTTP server instance
