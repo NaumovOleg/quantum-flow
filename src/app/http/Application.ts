@@ -1,4 +1,4 @@
-import { CONTROLLERS, OK_STATUSES, STATIC_METADATA_KEY, STATISTIC } from '@constants';
+import { CONTROLLERS, OK_STATUSES, STATISTIC } from '@constants';
 import {
   AppRequest,
   ControllerType,
@@ -7,7 +7,6 @@ import {
   IHttpServer,
   MiddlewareCB,
   ServerConfig,
-  StaticConfig,
 } from '@types';
 import {
   collectRawBody,
@@ -22,7 +21,9 @@ import {
   serializeError,
   staticMiddleware,
 } from '@utils';
+import { createYoga } from 'graphql-yoga';
 import http, { IncomingMessage, ServerResponse } from 'http';
+import { GraphQLModule } from '../../graphql/module';
 import { SSEServer } from '../../sse/server';
 import { SSEService } from '../../sse/service';
 import { WebSocketServer } from '../../ws/server';
@@ -39,6 +40,8 @@ export class HttpServer extends Plugin implements IHttpServer {
   private allControllers: (new (...args: any[]) => any)[];
   controllers: ControllerType[] = [];
   middlewares: MiddlewareCB[] = [];
+  graphql?: GraphQLModule;
+  private graphqlHandler?: any;
 
   constructor(configOrClass: new (...args: any[]) => any) {
     super();
@@ -46,6 +49,7 @@ export class HttpServer extends Plugin implements IHttpServer {
 
     this.controllers = this.controllers.concat(this.config.controllers ?? []);
     this.middlewares = this.middlewares.concat(this.config.middlewares ?? []);
+    this.allControllers = this.getAllControllers(this.controllers);
 
     const app = http.createServer(this.requestHandler.bind(this));
 
@@ -54,12 +58,14 @@ export class HttpServer extends Plugin implements IHttpServer {
       this.middlewares?.unshift(staticMw as MiddlewareCB);
     }
 
-    this.allControllers = this.getAllControllers(this.controllers);
-    this.setupStaticFiles();
     if (this.config.websocket?.enabled) {
       this.websocket = new WebSocketServer(app, { path: this.config.websocket.path });
       this.websocket.registerControllers(this.allControllers);
       WebSocketService.getInstance().initialize(this.websocket!);
+    }
+
+    if (this.config.graphql?.enabled) {
+      this.setupGraphQL();
     }
 
     if (this.config.sse?.enabled) {
@@ -69,7 +75,7 @@ export class HttpServer extends Plugin implements IHttpServer {
     }
 
     this.app = app;
-
+    console.log(this.controllers);
     this.logConfig();
   }
 
@@ -85,7 +91,8 @@ export class HttpServer extends Plugin implements IHttpServer {
 ║  🔧 Error handler: ${!this.config.errorHandler}                   
 ║  🎯 Global Interceptors: ${!!this.config.interceptor?.length}                   
 ║  📦 Controllers: ${STATISTIC.controllers}                   
-║  📦 Routes: ${STATISTIC.routes}                   
+║  📦 Routes: ${this.getAllControllers.length}                   
+║  📦 Graphql handler: ${!!this.config?.graphql?.enabled}                   
 ╚════════════════════════════════════════╝
     `);
   }
@@ -345,14 +352,34 @@ export class HttpServer extends Plugin implements IHttpServer {
     return this.sendResponse(response, { data: serialized }, startTime, request);
   }
 
-  private setupStaticFiles() {
-    const staticConfigs: StaticConfig[] = [];
+  private setupGraphQL() {
+    if (!this.config.graphql?.enabled) return;
 
-    for (const ControllerClass of this.allControllers) {
-      const classStatic = Reflect.getMetadata(STATIC_METADATA_KEY, ControllerClass);
-      if (classStatic) {
-        staticConfigs.push(classStatic);
+    const graphqlModule = new GraphQLModule(this.allControllers);
+    const schema = graphqlModule.getSchema();
+
+    const yoga = createYoga({
+      schema,
+      context: (req) => ({ req }),
+      graphiql: !!this.config.graphql?.playground,
+    });
+
+    this.graphqlHandler = yoga;
+
+    this.use(async (req, res, next) => {
+      const path = this.config.graphql?.path ?? '/graphql';
+      console.log('========', req.requestUrl.pathname, this.config.graphql?.path);
+      if (req.requestUrl.pathname?.startsWith(path)) {
+        const reps = await this.graphqlHandler(req, res);
+        console.log('========', reps);
+        return;
       }
-    }
+      return next();
+    });
+  }
+
+  public use(middleware: MiddlewareCB): this {
+    this.middlewares.unshift(middleware);
+    return this;
   }
 }

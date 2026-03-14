@@ -21,6 +21,7 @@ export interface ServerConfig {
     lazy?: boolean;
   };
   sse?: { enabled: boolean };
+  graphql?: { enabled: boolean; playground?: boolean; path?: string };
 }
 
 import { Server } from 'http';

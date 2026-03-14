@@ -69,3 +69,7 @@ export function mergeMiddlewares(...middlewareLists: MiddlewareCB[][]): Middlewa
 export function mergeInterceptors(...interceptorLists: InterceptorCB[][]): InterceptorCB[] {
   return interceptorLists.flat();
 }
+
+export function isClass(obj: any): boolean {
+  return typeof obj === 'function' && /^class\s/.test(Function.prototype.toString.call(obj));
+}

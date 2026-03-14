@@ -25,6 +25,7 @@ You can use controllers and server functionality by importing controllers and cr
 - `quantum-flow/sse` - Server side events decorators.
 - `quantum-flow/plugins/aws` - Exports plugins types for lambda.
 - `quantum-flow/plugins/http` - Exports plugins types for http server.
+- `quantum-flow/graphql` - Graphql components.
 
 ---
 
@@ -441,12 +442,67 @@ lambdaAdapter.usePlugin(dbConnectionPlugin);
 export const handler = lambdaAdapter.handler;
 ```
 
-## Summary
+# Using GraphQL Decorators
 
-- Use `@Controller` with `prefix` and `controllers` to organize your API.
-- Use `@InjectSSE` to create SSE connections in controller methods.
-- Use the SSE service's `send` method to push events to clients.
-- Use `@OnSSEConnection`, `@OnSSEError`, and `@OnSSEClose` decorators to handle SSE lifecycle events.
-- Enable SSE in your server configuration and register SSE controllers.
+This project provides a set of decorators to define GraphQL schema and resolvers in a declarative way using TypeScript decorators.
 
-This setup allows you to build real-time, event-driven APIs using Server-Sent Events in a clean and modular way.
+### Available Decorators
+
+- `@ObjectType(name?: string)`: Class decorator to define a GraphQL ObjectType.
+- `@InputType(name?: string)`: Class decorator to define a GraphQL InputType.
+- `@Field(type?)`: Property decorator to define a GraphQL field with optional type or nullable option.
+- `@Arg(name?, type?, options?)`: Parameter decorator to define GraphQL arguments for resolver methods.
+- `@Query(returnType?)`: Method decorator to define a GraphQL query resolver.
+- `@Mutation(returnType?)`: Method decorator to define a GraphQL mutation resolver.
+- `@Subscription(returnType?)`: Method decorator to define a GraphQL subscription resolver.
+- `@Resolver()`: Class decorator to mark a class as a GraphQL resolver.
+
+### Example Usage
+
+```typescript
+import { Controller } from 'quantum-flow/core';
+import { Arg, Field, InputType, Mutation, ObjectType, Query } from 'quantum-flow/graphql';
+
+@ObjectType('User')
+class User {
+  @Field() id: string;
+  @Field() name: string;
+  @Field() email: string;
+  @Field({ nullable: true }) bio?: string;
+  @Field(() => [String]) roles: string[];
+}
+
+@InputType('CreateUserInput')
+class CreateUserInput {
+  @Field() name: string;
+  @Field() email: string;
+  @Field({ nullable: true }) bio?: string;
+  @Field(() => [String]) roles?: string[];
+}
+
+@Controller('/graphql')
+export class GraphQlController {
+  private users: User[] = [
+    /* initial users */
+  ];
+
+  @Query(User)
+  async getUser(@Arg('id', String, { required: true }) id: string) {
+    // implementation
+  }
+
+  @Query(() => [User])
+  async getUsers() {
+    // implementation
+  }
+
+  @Mutation(User)
+  async createUser(@Arg('input', CreateUserInput, { required: true }) input: CreateUserInput) {
+    // implementation
+  }
+
+  // Additional queries and mutations...
+}
+```
+
+This example demonstrates how to define GraphQL types and resolvers using decorators, enabling a clean and declarative schema definition.
