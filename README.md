@@ -433,53 +433,50 @@ lambdaAdapter.usePlugin(dbConnectionPlugin);
 export const handler = lambdaAdapter.handler;
 ```
 
-# Using GraphQL Decorators
+## GraphQL
 
-This project provides a set of decorators to define GraphQL schema and resolvers in a declarative way using TypeScript decorators.
+Quantum Flow provides first‑class GraphQL support through a set of declarative decorators, inspired by TypeGraphQL. You can build a fully typed GraphQL schema by annotating your resolvers and types directly in TypeScript.
+GraphQL support requires the `graphql` and `graphql-yoga` packages.
 
-### Available Decorators
+### Core GraphQL Decorators
 
-- `@ObjectType(name?: string)`: Class decorator to define a GraphQL ObjectType.
-- `@InputType(name?: string)`: Class decorator to define a GraphQL InputType.
-- `@Field(type?)`: Property decorator to define a GraphQL field with optional type or nullable option.
-- `@Arg(name?, type?, options?)`: Parameter decorator to define GraphQL arguments for resolver methods.
-- `@Query(returnType?)`: Method decorator to define a GraphQL query resolver.
-- `@Mutation(returnType?)`: Method decorator to define a GraphQL mutation resolver.
-- `@Subscription(returnType?)`: Method decorator to define a GraphQL subscription resolver.
+| Decorator                      | Description                                                               |
+| ------------------------------ | ------------------------------------------------------------------------- |
+| `@ObjectType()`                | Marks a class as a GraphQL object type.                                   |
+| `@Field(type?)`                | Defines a field on an object or input type.                               |
+| `@InputType()`                 | Marks a class as a GraphQL input type (for arguments).                    |
+| `@Resolver(type?)`             | Marks a class as a GraphQL resolver (optionally specifies the root type). |
+| `@Query(returns?)`             | Defines a method as a GraphQL query (field of the Query type).            |
+| `@Mutation(returns?)`          | Defines a method as a GraphQL mutation (field of the Mutation type).      |
+| `@FieldResolver(returns?)`     | Defines a method that resolves a field of an object type.                 |
+| `@Arg(name?, type?, options?)` | Declares a method argument as a GraphQL argument.                         |
+| `@Root()`                      | Injects the parent object in a field resolver.                            |
+| `@Context()`                   | Injects the GraphQL context (e.g., request object).                       |
 
-### Enabling
-
-```typescript
-@Server({
-  controllers: [GraphQlController],
-  graphql: { enabled: true, path: '/graphql' },
-})
-export class App {}
-```
-
-### Example Usage
+### Defining Object Types
 
 ```typescript
-import { Controller } from 'quantum-flow/core';
-import { Arg, Field, InputType, Mutation, ObjectType, Query } from 'quantum-flow/graphql';
+import { ObjectType, Field, ID } from 'quantum-flow/graphql';
 
-import { Arg, Field, InputType, Mutation, ObjectType, Query, Resolver } from 'quantum-flow/graphql';
-
-@ObjectType('User')
+@ObjectType()
 export class User {
-  @Field()
+  @Field(() => ID)
   id: string;
   @Field()
   name: string;
-  @Field()
-  email: string;
   @Field({ nullable: true })
-  bio?: string;
+  email?: string;
   @Field(() => [String])
   roles: string[];
 }
+```
 
-@InputType('CreateUserInput')
+### Defining Input Types
+
+```typescript
+import { InputType, Field } from 'quantum-flow/graphql';
+
+@InputType()
 export class CreateUserInput {
   @Field()
   name: string;
@@ -487,49 +484,99 @@ export class CreateUserInput {
   email: string;
   @Field({ nullable: true })
   bio?: string;
-  @Field(() => [String])
+  @Field(() => [String], { nullable: true })
   roles?: string[];
 }
+```
 
-@InputType('UpdateUserInput')
-export class UpdateUserInput {
-  @Field({ nullable: true })
-  name?: string;
-  @Field({ nullable: true })
-  email?: string;
-  @Field({ nullable: true })
-  bio?: string;
-  @Field(() => [String])
-  roles?: string[];
-}
+### Writing Resolvers
+
+GraphQL resolvers are classes decorated with `@Resolver`. They contain methods annotated with `@Query`, `@Mutation`, or `@FieldResolver`.
+
+```typescript
+import { Resolver, Query, Mutation, Arg } from 'quantum-flow/graphql';
+import { User, CreateUserInput } from './user.types';
 
 @Resolver()
 export class UserResolver {
+  private users: User[] = [];
+  @Query(() => [User])
+  async getUsers(): Promise<User[]> {...}
+  @Query(() => User, { nullable: true })
+  async getUser(@Arg('id', () => String) id: string): Promise<User | undefined> {...}
+
+  @Mutation(() => User)
+  async createUser(@Arg('input', () => CreateUserInput) input: CreateUserInput): Promise<User> {...}
+}
+```
+
+### Field Resolvers (Resolving Relationships)
+
+Field resolvers allow you to add fields to an existing object type without modifying the original class. They are especially useful for loading related data.
+
+```typescript
+import { Resolver, FieldResolver, Root } from 'quantum-flow/graphql';
+import { User } from './user.types';
+import { Post } from './post.types';
+
+@Resolver(() => User)
+export class UserRelationsResolver {
+  constructor(private posts: Post[] = []) {}
+
+  @FieldResolver(() => [Post])
+  async posts(@Root() user: User): Promise<Post[]> {...}
+}
+```
+
+### Using Context
+
+Context can be used to share information across resolvers (e.g., authenticated user, database connection, request headers). It is defined in the server configuration and injected with `@Context()`.
+Server setup (inside your main server class, e.g., HttpServer):
+
+```typescript
+import { Resolver, Query, Context } from 'quantum-flow/graphql';
+
+@Resolver()
+export class AuthResolver {
   @Query(() => User)
-  async getUser(@Arg('id', String, { required: true }) id: string) {
-    return this.users.find((u) => u.id === id);
-  }
-
-  @Query(() => [User])
-  async getUsers() {...}
-
-  @Mutation(() => User)
-  async createUser(@Arg('input', CreateUserInput, { required: true }) input: CreateUserInput) {...}
-
-  @Mutation(() => User)
-  async updateUser(
-    @Arg('id', String, { required: true }) id: string,
-    @Arg('input', UpdateUserInput, { required: true }) input: UpdateUserInput,
-  ) {...}
-
-  @Mutation(() => Boolean)
-  async deleteUser(@Arg('id', String, { required: true }) id: string) {...}
-
-  @Query(() => [User])
-  async searchUsers(@Arg('name', String, { required: true }) name: string) {
-    return this.users.filter((u) => u.name.toLowerCase().includes(name.toLowerCase()));
+  async me(@Context() ctx: any): Promise<User> {
+    if (!ctx.user) throw new Error('Not authenticated');
+    return ctx.user;
   }
 }
 ```
 
-This example demonstrates how to define GraphQL types and resolvers using decorators, enabling a clean and declarative schema definition.
+### Server Configuration
+
+To enable GraphQL, add a `graphql` field to your `@Server` decorator:
+
+```typescript
+import { Server } from 'quantum-flow/http';
+import { UserResolver } from './resolvers/user.resolver';
+import { UserRelationsResolver } from './resolvers/user-relations.resolver';
+
+@Server({
+  resolvers: [UserResolver, UserRelationsResolver], // list of resolver classes
+  graphql: {
+    enabled: true,
+    path: '/graphql', // endpoint path (default: '/graphql')
+    playground: true, // enable GraphQL Playground (default: false)
+  },
+})
+export class App {}
+```
+
+### Important Notes
+
+- Resolvers must be separate from REST controllers. Do not put GraphQL methods in classes decorated with `@Controller`.
+- Always use `@Resolver` for GraphQL.
+- All resolver classes must be listed in the `resolvers` array of the server configuration.
+- Field resolvers require the target object type to be explicitly passed to `@Resolver(() => Type)`.
+- The framework automatically builds the GraphQL schema from the decorators metadata.
+
+### Advanced Features
+
+- Subscriptions – planned for future releases.
+- Custom scalars – you can extend the type system by registering custom GraphQL scalars.
+- Validation – combine with `class-validator` by using DTO classes as input types.
+- Directives – support for custom schema directives can be added.

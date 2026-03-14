@@ -88,8 +88,7 @@ export class HttpServer extends Plugin implements IHttpServer {
         continue;
       }
 
-      const instance = new ControllerClass();
-      this.controllers.push(instance);
+      this.controllers.push(ControllerClass);
       const subControllers = Reflect.getMetadata(CONTROLLERS, ControllerClass.prototype) || [];
       if (subControllers.length > 0) {
         this.collectControllers(subControllers);
