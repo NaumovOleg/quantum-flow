@@ -3,6 +3,7 @@ import { ANY, Controller, Response } from 'quantum-flow/core';
 import { Server } from 'quantum-flow/http';
 
 import { GraphQlController } from './controllers/graphql';
+import { UserResolver } from './controllers/resolver';
 import { Socket } from './controllers/socket';
 import { User } from './controllers/user';
 
@@ -25,7 +26,8 @@ export class MetricsController {
 }
 
 @Server({
-  controllers: [Root, Socket, MetricsController, GraphQlController],
+  controllers: [Root, Socket, MetricsController],
+  resolvers: [UserResolver, GraphQlController],
   statics: [
     {
       path: path.join(__dirname, '../../'),

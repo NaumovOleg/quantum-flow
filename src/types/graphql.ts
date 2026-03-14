@@ -44,3 +44,12 @@ export interface SubscriptionMetadata extends QueryMetadata {}
 export type GraphQLField<T = any> = T;
 export type GraphQLArgs<T = any> = T;
 export type GraphQLReturnType<T = any> = T;
+
+export interface ResolverMetadata {
+  type: any;
+}
+
+export interface FieldResolverMetadata {
+  returns?: any;
+  method: string;
+}

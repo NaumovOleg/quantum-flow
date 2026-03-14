@@ -31,25 +31,29 @@ import { WebSocketService } from '../../ws/service';
 import { Plugin } from '../plugin';
 
 export class HttpServer extends Plugin implements IHttpServer {
-  app: http.Server;
-  plugins: HttpPlugin[] = [];
   private config: ServerConfig;
+  private graphqlHandler?: any;
   private isRunning: boolean = false;
   private sse?: SSEServer;
   private websocket?: WebSocketServer;
-  private allControllers: (new (...args: any[]) => any)[];
+  private resolverClasses: any[] = [];
   controllers: ControllerType[] = [];
   middlewares: MiddlewareCB[] = [];
   graphql?: GraphQLModule;
-  private graphqlHandler?: any;
+  app: http.Server;
+  plugins: HttpPlugin[] = [];
 
   constructor(configOrClass: new (...args: any[]) => any) {
     super();
     this.config = resolveConfig(configOrClass);
 
+    this.resolverClasses = (this.config.resolvers || []).filter(
+      (r) => typeof r === 'function' && r.name,
+    );
+
     this.controllers = this.controllers.concat(this.config.controllers ?? []);
     this.middlewares = this.middlewares.concat(this.config.middlewares ?? []);
-    this.allControllers = this.getAllControllers(this.controllers);
+    this.collectControllers(this.config.controllers);
 
     const app = http.createServer(this.requestHandler.bind(this));
 
@@ -60,7 +64,7 @@ export class HttpServer extends Plugin implements IHttpServer {
 
     if (this.config.websocket?.enabled) {
       this.websocket = new WebSocketServer(app, { path: this.config.websocket.path });
-      this.websocket.registerControllers(this.allControllers);
+      this.websocket.registerControllers(this.controllers);
       WebSocketService.getInstance().initialize(this.websocket!);
     }
 
@@ -70,13 +74,27 @@ export class HttpServer extends Plugin implements IHttpServer {
 
     if (this.config.sse?.enabled) {
       this.sse = new SSEServer();
-      this.sse.registerControllers(this.allControllers);
+      this.sse.registerControllers(this.controllers);
       SSEService.getInstance().initialize(this.sse);
     }
 
     this.app = app;
-    console.log(this.controllers);
     this.logConfig();
+  }
+
+  private collectControllers(controllers: ControllerType[] = []) {
+    for (const ControllerClass of controllers || []) {
+      if (typeof ControllerClass !== 'function') {
+        continue;
+      }
+
+      const instance = new ControllerClass();
+      this.controllers.push(instance);
+      const subControllers = Reflect.getMetadata(CONTROLLERS, ControllerClass.prototype) || [];
+      if (subControllers.length > 0) {
+        this.collectControllers(subControllers);
+      }
+    }
   }
 
   private logConfig() {
@@ -91,15 +109,14 @@ export class HttpServer extends Plugin implements IHttpServer {
 ║  🔧 Error handler: ${!this.config.errorHandler}                   
 ║  🎯 Global Interceptors: ${!!this.config.interceptor?.length}                   
 ║  📦 Controllers: ${STATISTIC.controllers}                   
-║  📦 Routes: ${this.getAllControllers.length}                   
-║  📦 Graphql handler: ${!!this.config?.graphql?.enabled}                   
+║  📦 Routes: ${this.controllers.length}                   
+║  📦 GraphQL resolvers: ${this.resolverClasses.length}                   
 ╚════════════════════════════════════════╝
     `);
   }
 
   public async listen(port?: number, host?: string): Promise<http.Server> {
     if (this.isRunning) {
-      console.log('⚠️ Server is already running');
       return this.app;
     }
 
@@ -124,27 +141,12 @@ export class HttpServer extends Plugin implements IHttpServer {
         await this.callPluginMethod('onStart', this.app);
 
         this.app.on('error', (error) => {
-          console.error('❌ Server error:', error);
           reject(error);
         });
       } catch (error) {
         reject(error);
       }
     });
-  }
-
-  private getAllControllers(controllers: ControllerType[] = []): ControllerType[] {
-    const result = [];
-    for (const ControllerClass of controllers || []) {
-      const instance = new ControllerClass();
-      result.push(instance);
-
-      const subControllers = Reflect.getMetadata(CONTROLLERS, ControllerClass.prototype) || [];
-
-      result.push(...this.getAllControllers(subControllers));
-    }
-
-    return result;
   }
 
   public async close(): Promise<void> {
@@ -332,7 +334,6 @@ export class HttpServer extends Plugin implements IHttpServer {
     response: http.ServerResponse,
     startTime: number,
   ): Promise<void> {
-    console.log(error);
     let serialized = serializeError(error);
 
     if (!this.config.errorHandler) {
@@ -355,12 +356,19 @@ export class HttpServer extends Plugin implements IHttpServer {
   private setupGraphQL() {
     if (!this.config.graphql?.enabled) return;
 
-    const graphqlModule = new GraphQLModule(this.allControllers);
+    if (this.resolverClasses.length === 0) {
+      return;
+    }
+
+    const graphqlModule = new GraphQLModule(this.resolverClasses);
     const schema = graphqlModule.getSchema();
 
     const yoga = createYoga({
       schema,
-      context: (req) => ({ req }),
+      context: (ctx) => {
+        const req = (ctx as any).request || (ctx as any).req;
+        return { req, headers: req?.headers };
+      },
       graphiql: !!this.config.graphql?.playground,
     });
 

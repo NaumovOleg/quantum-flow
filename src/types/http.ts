@@ -20,6 +20,7 @@ export interface ServerConfig {
     path?: string;
     lazy?: boolean;
   };
+  resolvers?: any[];
   sse?: { enabled: boolean };
   graphql?: { enabled: boolean; playground?: boolean; path?: string };
 }

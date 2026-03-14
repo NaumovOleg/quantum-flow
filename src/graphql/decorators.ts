@@ -1,40 +1,34 @@
 import {
   GRAPHQL_ARG,
   GRAPHQL_FIELD,
+  GRAPHQL_FIELD_RESOLVER,
   GRAPHQL_INPUT_TYPE,
   GRAPHQL_MUTATION,
   GRAPHQL_QUERY,
+  GRAPHQL_RESOLVER,
   GRAPHQL_SUBSCRIPTION,
   GRAPHQL_TYPE,
 } from '@constants';
-import 'reflect-metadata';
-
 import {
   ArgMetadata,
   ArgOptions,
   FieldMetadata,
+  FieldResolverMetadata,
   GraphQLType,
+  MutationMetadata,
   QueryMetadata,
+  ResolverMetadata,
+  SubscriptionMetadata,
   TypeMetadata,
 } from '@types';
+import 'reflect-metadata';
 
-export interface MutationMetadata extends QueryMetadata {}
-export interface SubscriptionMetadata extends QueryMetadata {}
-
-/**
- * Class decorator to mark a class as a GraphQL ObjectType.
- * @param {string} [name] - Optional name of the GraphQL ObjectType. Defaults to the class name.
- */
 export function ObjectType(name?: string): ClassDecorator {
   return function (target: any) {
     Reflect.defineMetadata(GRAPHQL_TYPE, { name: name || target.name } as TypeMetadata, target);
   };
 }
 
-/**
- * Class decorator to mark a class as a GraphQL InputType.
- * @param {string} [name] - Optional name of the GraphQL InputType. Defaults to the class name.
- */
 export function InputType(name?: string): ClassDecorator {
   return function (target: any) {
     Reflect.defineMetadata(
@@ -45,10 +39,6 @@ export function InputType(name?: string): ClassDecorator {
   };
 }
 
-/**
- * Property decorator to mark a class property as a GraphQL Field.
- * @param {GraphQLType | (() => GraphQLType) | { nullable: true }} [type] - The GraphQL type or a function returning the type. Can specify nullable.
- */
 export function Field(
   type?: GraphQLType | (() => GraphQLType) | { nullable: true },
 ): PropertyDecorator {
@@ -59,16 +49,10 @@ export function Field(
   };
 }
 
-/**
- * Parameter decorator to define a GraphQL argument.
- * @param {string} [name] - Name of the argument.
- * @param {GraphQLType} [type] - GraphQL type of the argument.
- * @param {ArgOptions} [options] - Additional options like required, description, defaultValue.
- */
 export function Arg(name?: string, type?: GraphQLType, options?: ArgOptions): ParameterDecorator {
   return function (target: any, propertyKey: string | symbol | undefined, parameterIndex: number) {
     if (propertyKey === undefined) {
-      throw new Error('@Arg decorator must be used on a method parameter');
+      throw new Error('❌ @Arg decorator must be used on a method parameter');
     }
 
     const args: ArgMetadata[] = Reflect.getMetadata(GRAPHQL_ARG, target, propertyKey) || [];
@@ -80,14 +64,47 @@ export function Arg(name?: string, type?: GraphQLType, options?: ArgOptions): Pa
       description: options?.description,
       defaultValue: options?.defaultValue,
     });
+
     Reflect.defineMetadata(GRAPHQL_ARG, args, target, propertyKey);
   };
 }
 
-/**
- * Method decorator to mark a method as a GraphQL Query.
- * @param {GraphQLType | (() => GraphQLType)} [returnType] - Return type of the query.
- */
+export function Root(): ParameterDecorator {
+  return function (target: any, propertyKey: string | symbol | undefined, parameterIndex: number) {
+    if (propertyKey === undefined) {
+      throw new Error('❌ @Root decorator must be used on a method parameter');
+    }
+
+    const args: ArgMetadata[] = Reflect.getMetadata(GRAPHQL_ARG, target, propertyKey) || [];
+    args.push({
+      index: parameterIndex,
+      name: 'root',
+      type: Object,
+      required: true,
+    });
+
+    Reflect.defineMetadata(GRAPHQL_ARG, args, target, propertyKey);
+  };
+}
+
+export function Context(): ParameterDecorator {
+  return function (target: any, propertyKey: string | symbol | undefined, parameterIndex: number) {
+    if (propertyKey === undefined) {
+      throw new Error('❌ @Context decorator must be used on a method parameter');
+    }
+
+    const args: ArgMetadata[] = Reflect.getMetadata(GRAPHQL_ARG, target, propertyKey) || [];
+    args.push({
+      index: parameterIndex,
+      name: 'context',
+      type: Object,
+      required: true,
+    });
+
+    Reflect.defineMetadata(GRAPHQL_ARG, args, target, propertyKey);
+  };
+}
+
 export function Query(returnType?: GraphQLType | (() => GraphQLType)): MethodDecorator {
   return function (target: any, propertyKey: string | symbol, descriptor: PropertyDescriptor) {
     Reflect.defineMetadata(
@@ -99,10 +116,6 @@ export function Query(returnType?: GraphQLType | (() => GraphQLType)): MethodDec
   };
 }
 
-/**
- * Method decorator to mark a method as a GraphQL Mutation.
- * @param {GraphQLType | (() => GraphQLType)} [returnType] - Return type of the mutation.
- */
 export function Mutation(returnType?: GraphQLType | (() => GraphQLType)): MethodDecorator {
   return function (target: any, propertyKey: string | symbol, descriptor: PropertyDescriptor) {
     Reflect.defineMetadata(
@@ -114,10 +127,6 @@ export function Mutation(returnType?: GraphQLType | (() => GraphQLType)): Method
   };
 }
 
-/**
- * Method decorator to mark a method as a GraphQL Subscription.
- * @param {GraphQLType | (() => GraphQLType)} [returnType] - Return type of the subscription.
- */
 export function Subscription(returnType?: GraphQLType | (() => GraphQLType)): MethodDecorator {
   return function (target: any, propertyKey: string | symbol, descriptor: PropertyDescriptor) {
     Reflect.defineMetadata(
@@ -126,5 +135,21 @@ export function Subscription(returnType?: GraphQLType | (() => GraphQLType)): Me
       target,
       propertyKey,
     );
+  };
+}
+
+export function FieldResolver(returns?: any): MethodDecorator {
+  return function (target: any, propertyKey: string | symbol, descriptor: PropertyDescriptor) {
+    Reflect.defineMetadata(
+      GRAPHQL_FIELD_RESOLVER,
+      { returns, method: propertyKey as string } as FieldResolverMetadata,
+      target,
+      propertyKey,
+    );
+  };
+}
+export function Resolver(type?: any): ClassDecorator {
+  return function (target: any) {
+    Reflect.defineMetadata(GRAPHQL_RESOLVER, { type } as ResolverMetadata, target);
   };
 }

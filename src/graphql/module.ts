@@ -1,9 +1,11 @@
 import {
   GRAPHQL_ARG,
   GRAPHQL_FIELD,
+  GRAPHQL_FIELD_RESOLVER,
   GRAPHQL_INPUT_TYPE,
   GRAPHQL_MUTATION,
   GRAPHQL_QUERY,
+  GRAPHQL_RESOLVER,
   GRAPHQL_SUBSCRIPTION,
   GRAPHQL_TYPE,
 } from '@constants';
@@ -21,10 +23,17 @@ import {
   GraphQLString,
 } from 'graphql';
 
+interface FieldResolverData {
+  fn: Function;
+  returns?: any;
+}
+
 export class GraphQLModule {
   private schema: GraphQLSchema;
   private typeCache: Map<any, GraphQLObjectType> = new Map();
   private inputTypeCache: Map<any, GraphQLInputObjectType> = new Map();
+  private fieldResolvers: Map<string, Map<string, FieldResolverData>> = new Map();
+  private resolverInstances: Map<any, any> = new Map();
 
   private typeMap: Record<string, any> = {
     String: GraphQLString,
@@ -44,8 +53,22 @@ export class GraphQLModule {
     GraphQLID: GraphQLID,
   };
 
-  constructor(private controllers: any[]) {
+  constructor(private classes: any[]) {
     this.schema = this.buildSchema();
+  }
+
+  private hasQueryOrMutation(cls: any): boolean {
+    const prototype = cls.prototype;
+    const methods = Object.getOwnPropertyNames(prototype).filter((m) => m !== 'constructor');
+    for (const methodName of methods) {
+      if (Reflect.hasMetadata(GRAPHQL_QUERY, prototype, methodName)) {
+        return true;
+      }
+      if (Reflect.hasMetadata(GRAPHQL_MUTATION, prototype, methodName)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private buildSchema(): GraphQLSchema {
@@ -56,16 +79,34 @@ export class GraphQLModule {
     let hasQueries = false;
     let hasMutations = false;
 
-    for (const controller of this.controllers) {
-      const prototype = Object.getPrototypeOf(controller.constructor.prototype);
+    for (const cls of this.classes) {
+      const resolverMeta = Reflect.getMetadata(GRAPHQL_RESOLVER, cls);
+      if (resolverMeta) {
+        console.log(`🔍 Found resolver class: ${cls.name}`);
+        this.processResolver(cls, resolverMeta);
+      }
+    }
+
+    for (const cls of this.classes) {
+      if (!cls || typeof cls !== 'function') {
+        continue;
+      }
+
+      const hasQueryOrMutation = this.hasQueryOrMutation(cls);
+      if (!hasQueryOrMutation) {
+        continue;
+      }
+
+      const instance = new cls();
+
+      const prototype = cls.prototype;
       const methods = Object.getOwnPropertyNames(prototype).filter((m) => m !== 'constructor');
 
       for (const methodName of methods) {
         const queryMeta = Reflect.getMetadata(GRAPHQL_QUERY, prototype, methodName);
-
         if (queryMeta) {
           queryFields[methodName] = this.createFieldConfig(
-            controller,
+            instance,
             prototype,
             methodName,
             queryMeta,
@@ -76,7 +117,7 @@ export class GraphQLModule {
         const mutationMeta = Reflect.getMetadata(GRAPHQL_MUTATION, prototype, methodName);
         if (mutationMeta) {
           mutationFields[methodName] = this.createFieldConfig(
-            controller,
+            instance,
             prototype,
             methodName,
             mutationMeta,
@@ -87,7 +128,7 @@ export class GraphQLModule {
         const subMeta = Reflect.getMetadata(GRAPHQL_SUBSCRIPTION, prototype, methodName);
         if (subMeta) {
           subscriptionFields[methodName] = this.createFieldConfig(
-            controller,
+            instance,
             prototype,
             methodName,
             subMeta,
@@ -101,6 +142,7 @@ export class GraphQLModule {
         type: GraphQLString,
         resolve: () => 'GraphQL is working!',
       };
+      hasQueries = true;
     }
 
     return new GraphQLSchema({
@@ -118,49 +160,41 @@ export class GraphQLModule {
     });
   }
 
-  private convertToGraphQLType(type: any, isInput: boolean = false): any {
-    if (!type) return GraphQLString;
-
-    if (Array.isArray(type)) {
-      const innerType = this.convertToGraphQLType(type[0], isInput);
-      return new GraphQLList(innerType);
+  private processResolver(cls: any, resolverMeta: any) {
+    const targetType = resolverMeta.type;
+    if (!targetType) {
+      return;
     }
 
-    if (typeof type === 'function') {
-      if (type === String) return GraphQLString;
-      if (type === Number) return GraphQLFloat;
-      if (type === Boolean) return GraphQLBoolean;
-      if (type === Date) return GraphQLString;
+    const typeName = targetType.name;
+    const instance = new cls();
+    this.resolverInstances.set(cls, instance);
 
-      const hasInputType = Reflect.hasMetadata(GRAPHQL_INPUT_TYPE, type);
-      const hasObjectType = Reflect.hasMetadata(GRAPHQL_TYPE, type);
+    const prototype = cls.prototype;
+    const methods = Object.getOwnPropertyNames(prototype).filter((m) => m !== 'constructor');
 
-      if (isInput || hasInputType) {
-        if (hasInputType) {
-          return this.getOrCreateInputObjectType(type);
-        }
-        return GraphQLString;
+    for (const methodName of methods) {
+      const fieldResolverMeta = Reflect.getMetadata(GRAPHQL_FIELD_RESOLVER, prototype, methodName);
+      if (!fieldResolverMeta) continue;
+
+      if (!this.fieldResolvers.has(typeName)) {
+        this.fieldResolvers.set(typeName, new Map());
       }
 
-      if (hasObjectType) {
-        return this.getOrCreateObjectType(type);
-      }
+      this.fieldResolvers.get(typeName)!.set(methodName, {
+        fn: instance[methodName].bind(instance),
+        returns: fieldResolverMeta.returns,
+      });
     }
-
-    if (typeof type === 'string' && this.typeMap[type]) {
-      return this.typeMap[type];
-    }
-
-    return GraphQLString;
   }
 
-  private createFieldConfig(controller: any, prototype: any, methodName: string, meta: any) {
+  private createFieldConfig(instance: any, prototype: any, methodName: string, meta: any) {
     const argMetas = Reflect.getMetadata(GRAPHQL_ARG, prototype, methodName) || [];
     argMetas.sort((a: any, b: any) => a.index - b.index);
 
     const args: Record<string, any> = {};
     for (const arg of argMetas) {
-      const argType = this.convertToGraphQLType(arg.type, true);
+      const argType = this.convertToGraphQLType(arg.type);
       args[arg.name] = {
         type: arg.required ? new GraphQLNonNull(argType) : argType,
         description: arg.description,
@@ -175,14 +209,59 @@ export class GraphQLModule {
       args: args,
       resolve: async (source: any, args: any, context: any, info: any) => {
         try {
-          const methodArgs = argMetas.map((arg: any) => args[arg.name]);
-          return await controller[methodName](...methodArgs, context);
+          const methodArgs = [];
+          for (const argMeta of argMetas) {
+            if (argMeta.name === 'root') {
+              methodArgs.push(source);
+            } else if (argMeta.name === 'context') {
+              methodArgs.push(context);
+            } else {
+              methodArgs.push(args[argMeta.name]);
+            }
+          }
+          return await instance[methodName](...methodArgs);
         } catch (error) {
-          console.error(`❌ Error in GraphQL resolver ${methodName}:`, error);
+          console.error(`❌ Error in resolver ${methodName}:`, error);
           throw error;
         }
       },
     };
+  }
+
+  private convertToGraphQLType(type: any): any {
+    if (!type) return GraphQLString;
+
+    if (Array.isArray(type)) {
+      const innerType = this.convertToGraphQLType(type[0]);
+      return new GraphQLList(innerType);
+    }
+
+    if (typeof type === 'function') {
+      if (!isClass(type)) {
+        const returnType = type();
+        if (returnType) {
+          return this.convertToGraphQLType(returnType);
+        }
+      }
+
+      if (type === String) return GraphQLString;
+      if (type === Number) return GraphQLFloat;
+      if (type === Boolean) return GraphQLBoolean;
+      if (type === Date) return GraphQLString;
+
+      if (Reflect.hasMetadata(GRAPHQL_TYPE, type)) {
+        return this.getOrCreateObjectType(type);
+      }
+      if (Reflect.hasMetadata(GRAPHQL_INPUT_TYPE, type)) {
+        return this.getOrCreateInputObjectType(type);
+      }
+    }
+
+    if (typeof type === 'string' && this.typeMap[type]) {
+      return this.typeMap[type];
+    }
+
+    return GraphQLString;
   }
 
   private getOrCreateObjectType(cls: any): GraphQLObjectType {
@@ -194,20 +273,36 @@ export class GraphQLModule {
     const fieldsMeta = Reflect.getMetadata(GRAPHQL_FIELD, cls.prototype) || [];
 
     const fields: Record<string, any> = {};
+
     for (const field of fieldsMeta) {
-      if (typeof field.type === 'function' && !isClass(field.type)) {
-        field.type = field.type();
-      }
-
-      const convertedType = this.convertToGraphQLType(field.type);
-
       fields[field.propertyKey] = {
-        type: convertedType,
-        resolve: (obj: any) => {
-          const value = obj[field.propertyKey];
-          return value;
-        },
+        type: this.convertToGraphQLType(field.type),
+        resolve: (obj: any) => obj[field.propertyKey],
       };
+    }
+
+    const typeName = typeMeta.name;
+    if (this.fieldResolvers.has(typeName)) {
+      const resolvers = this.fieldResolvers.get(typeName)!;
+      for (const [fieldName, resolverData] of resolvers) {
+        if (!fields[fieldName]) {
+          const returnType = resolverData.returns
+            ? this.convertToGraphQLType(resolverData.returns)
+            : GraphQLString;
+
+          fields[fieldName] = {
+            type: returnType,
+            resolve: async (obj: any, args: any, context: any) => {
+              try {
+                return await resolverData.fn(obj, context);
+              } catch (error) {
+                console.error(`❌ Error in field resolver ${fieldName}:`, error);
+                throw error;
+              }
+            },
+          };
+        }
+      }
     }
 
     const objectType = new GraphQLObjectType({
@@ -230,7 +325,7 @@ export class GraphQLModule {
     const fields: Record<string, any> = {};
     for (const field of fieldsMeta) {
       fields[field.propertyKey] = {
-        type: this.convertToGraphQLType(field.type, true),
+        type: this.convertToGraphQLType(field.type),
       };
     }
 

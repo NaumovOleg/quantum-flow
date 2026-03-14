@@ -463,36 +463,72 @@ export class App {}
 import { Controller } from 'quantum-flow/core';
 import { Arg, Field, InputType, Mutation, ObjectType, Query } from 'quantum-flow/graphql';
 
+import { Arg, Field, InputType, Mutation, ObjectType, Query, Resolver } from 'quantum-flow/graphql';
+
 @ObjectType('User')
-class User {
-  @Field() id: string;
-  @Field() name: string;
-  @Field() email: string;
-  @Field({ nullable: true }) bio?: string;
-  @Field(() => [String]) roles: string[];
+export class User {
+  @Field()
+  id: string;
+  @Field()
+  name: string;
+  @Field()
+  email: string;
+  @Field({ nullable: true })
+  bio?: string;
+  @Field(() => [String])
+  roles: string[];
 }
 
 @InputType('CreateUserInput')
-class CreateUserInput {
-  @Field() name: string;
-  @Field() email: string;
-  @Field({ nullable: true }) bio?: string;
-  @Field(() => [String]) roles?: string[];
+export class CreateUserInput {
+  @Field()
+  name: string;
+  @Field()
+  email: string;
+  @Field({ nullable: true })
+  bio?: string;
+  @Field(() => [String])
+  roles?: string[];
 }
 
-@Controller('/graphql')
-export class GraphQlController {
+@InputType('UpdateUserInput')
+export class UpdateUserInput {
+  @Field({ nullable: true })
+  name?: string;
+  @Field({ nullable: true })
+  email?: string;
+  @Field({ nullable: true })
+  bio?: string;
+  @Field(() => [String])
+  roles?: string[];
+}
 
-  @Query(User)
-  async getUser(@Arg('id', String, { required: true }) id: string) {...}
+@Resolver()
+export class UserResolver {
+  @Query(() => User)
+  async getUser(@Arg('id', String, { required: true }) id: string) {
+    return this.users.find((u) => u.id === id);
+  }
 
   @Query(() => [User])
   async getUsers() {...}
 
-  @Mutation(User)
+  @Mutation(() => User)
   async createUser(@Arg('input', CreateUserInput, { required: true }) input: CreateUserInput) {...}
 
-  // Additional queries and mutations...
+  @Mutation(() => User)
+  async updateUser(
+    @Arg('id', String, { required: true }) id: string,
+    @Arg('input', UpdateUserInput, { required: true }) input: UpdateUserInput,
+  ) {...}
+
+  @Mutation(() => Boolean)
+  async deleteUser(@Arg('id', String, { required: true }) id: string) {...}
+
+  @Query(() => [User])
+  async searchUsers(@Arg('name', String, { required: true }) name: string) {
+    return this.users.filter((u) => u.name.toLowerCase().includes(name.toLowerCase()));
+  }
 }
 ```
 

@@ -49,3 +49,5 @@ export const GRAPHQL_TYPE = 'graphql:type';
 export const GRAPHQL_INPUT_TYPE = 'graphql:inputType';
 export const GRAPHQL_FIELD = 'graphql:field';
 export const GRAPHQL_ARG = 'graphql:arg';
+export const GRAPHQL_FIELD_RESOLVER = 'graphql:fieldresolver';
+export const GRAPHQL_RESOLVER = 'graphql:resolver';
