@@ -448,8 +448,7 @@ yarn add type-graphql graphql graphql-yoga @graphql-yoga/subscriptions
 @Server({
   controllers: [/* your REST controllers */],
   websocketPath:'/ws',  //GraphQL subscriptions uses same ws server as  main application
-  graphql: {
-    enabled: true,                     // GraphQL endpoint (default: '/graphql')
+  graphql: {                   // GraphQL endpoint (default: '/graphql')
     playground: true,                  // Enable GraphQL Playground
     resolvers: [UserResolver, MessageResolver], // Your resolver classes
     pubSub: pubSub,                    // Your PubSub instance (required for subscriptions)
@@ -498,7 +497,6 @@ export class CreateUserInput {
   @Field()
   @MinLength(2)
   name: string;
-
   @Field()
   @IsEmail()
   email: string;
