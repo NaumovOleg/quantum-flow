@@ -2,7 +2,7 @@ import { Context } from 'aws-lambda';
 import { IncomingMessage, Server, ServerResponse } from 'http';
 import { AppRequest, MiddlewareCB } from './common';
 import { IHttpServer } from './http';
-import { ILambdaAdapter, ILRequest, ILResponse, LambdaEvent } from './lambda';
+import { ILambdaAdapter, ILResponse, LambdaEvent, LambdaRequest } from './lambda';
 
 export interface HttpPluginHooks {
   beforeRequest?: (req: IncomingMessage) => void | Promise<void>;
@@ -26,8 +26,8 @@ export type PluginKeys = keyof Omit<HttpPlugin, 'name' | 'hooks'>;
 
 export interface LambdaPluginHooks {
   beforeRequest?: (event: LambdaEvent, context: Context) => void | Promise<void>;
-  beforeRoute?: (req: ILRequest) => void | Promise<void>;
-  afterResponse?: (req: ILRequest, res: ILResponse) => void | Promise<void>;
+  beforeRoute?: (req: LambdaRequest) => void | Promise<void>;
+  afterResponse?: (req: LambdaRequest, res: ILResponse) => void | Promise<void>;
 }
 
 export interface LambdaPlugin {

@@ -49,6 +49,7 @@ import {
 import {IsString} from  'class-validator'
 import { Catch, Cors, Sanitize, Use, SANITIZER } from 'quantum-flow/middlewares';
 import { InjectWS } from 'quantum-flow/ws';
+import { HttpRequest } from 'quantum-flow/http';
 // SANITIZER - prefilled Joi shema for  common data
 class UserDto {
   constructor() {}
@@ -77,14 +78,13 @@ export class User {
   @Cors({ origin: '*' })
   async createUser(
     @Body(UserDto) body: UserDto,
-    @Query() query: any,
-    @Headers() headers: any,
-    @Params(ParamDTO, 'param') params: any,
-    @Request() req: any,
-    @Response() resp: any,
+    @Query() query: Record<string, string | string[]>,
+    @Headers() headers: Record<string, string | string[]>,
+    @Params(ParamDTO, 'param') params: string,
+    @Request() req: HttpRequest,
+    @Response() resp: ServerResponse,
     @InjectWS() ws: IWebSocketService,
-  ) {
-  }
+  ) {}
 
   @ANY([...middlewares])
   async any(@Response() resp: any) {...}
@@ -146,16 +146,20 @@ Use `LambdaAdapter` to convert API Gateway events to requests and responses. Cre
 
 ```typescript
 Example Lambda handler creation
-import { LambdaAdapter } from 'quantum-flow/aws';
+import { LambdaAdapter, LambdaRequest, Request } from 'quantum-flow/aws';
 
-let dbConnection = null;
-
-@Controller({
-  prefix: 'api',
-  controllers: [UserController, SocketController],
-})
-class RootController {}
-const lambdaAdapter = new LambdaAdapter(Root);
+@Controller({ prefix: 'user' })
+class UserController {
+    @Body(UserDto) body: UserDto,
+    @Query() query: Record<string, string | string[]>,
+    @Headers() headers: Record<string, string | string[]>,
+    @Params(ParamDTO, 'param') params: string,
+    @Request() req: LambdaRequest,
+    @Response() resp: ServerResponse,
+    @InjectWS() ws: IWebSocketService,
+  ) {}
+}
+const lambdaAdapter = new LambdaAdapter(UserController);
 export const handler = lambdaAdapter.handler;
 ```
 

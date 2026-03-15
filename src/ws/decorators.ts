@@ -4,8 +4,15 @@ import { createParamDecorator } from '@utils';
 
 /**
  * Method decorator to handle WebSocket events.
- * @param type Type of WebSocket event (connection, message, close, error).
- * @param topic Optional topic for message filtering.
+ *
+ * @param {WebSocketHandlerType} type - Type of WebSocket event (connection, message, close, error).
+ * @param {string} [topic] - Optional topic for message filtering.
+ *
+ * Usage:
+ * ```ts
+ * @OnWS('message', 'chat')
+ * onMessage(msg) {}
+ * ```
  */
 export function OnWS(type: WebSocketHandlerType, topic?: string) {
   return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
@@ -18,6 +25,12 @@ export function OnWS(type: WebSocketHandlerType, topic?: string) {
 
 /**
  * Shortcut decorator for WebSocket connection event handler.
+ *
+ * Usage:
+ * ```ts
+ * @OnConnection()
+ * onConnect() {}
+ * ```
  */
 export function OnConnection() {
   return OnWS('connection');
@@ -25,7 +38,14 @@ export function OnConnection() {
 
 /**
  * Shortcut decorator for WebSocket message event handler.
- * @param topic Optional topic for message filtering.
+ *
+ * @param {string} [topic] - Optional topic for message filtering.
+ *
+ * Usage:
+ * ```ts
+ * @OnMessage('chat')
+ * onChatMessage(msg) {}
+ * ```
  */
 export function OnMessage(topic?: string) {
   return OnWS('message', topic);
@@ -33,6 +53,12 @@ export function OnMessage(topic?: string) {
 
 /**
  * Shortcut decorator for WebSocket close event handler.
+ *
+ * Usage:
+ * ```ts
+ * @OnClose()
+ * onClose() {}
+ * ```
  */
 export function OnClose() {
   return OnWS('close');
@@ -40,6 +66,12 @@ export function OnClose() {
 
 /**
  * Shortcut decorator for WebSocket error event handler.
+ *
+ * Usage:
+ * ```ts
+ * @OnError()
+ * onError() {}
+ * ```
  */
 export function OnError() {
   return OnWS('error');
@@ -47,7 +79,14 @@ export function OnError() {
 
 /**
  * Method decorator to subscribe to a WebSocket topic.
- * @param topic Topic name to subscribe.
+ *
+ * @param {string} topic - Topic name to subscribe.
+ *
+ * Usage:
+ * ```ts
+ * @Subscribe('news')
+ * onNews(data) {}
+ * ```
  */
 export function Subscribe(topic: string) {
   return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
@@ -62,6 +101,11 @@ export function Subscribe(topic: string) {
 
 /**
  * Parameter decorator to inject WebSocket service instance.
+ *
+ * Usage:
+ * ```ts
+ * someMethod(@InjectWS() ws) {}
+ * ```
  */
 export function InjectWS() {
   return createParamDecorator('ws');

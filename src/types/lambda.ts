@@ -1,4 +1,4 @@
-import { APIGatewayProxyEvent, APIGatewayProxyEventV2, Handler } from 'aws-lambda';
+import { APIGatewayProxyEvent, APIGatewayProxyEventV2, Context, Handler } from 'aws-lambda';
 import { HTTP_METHODS } from './common';
 import { ControllerClass } from './controller';
 import { MultipartFile } from './multipart';
@@ -50,9 +50,9 @@ export interface NormalizedEvent {
   requestContext: any;
 }
 
-export interface LambdaRequest {
-  event?: any;
-  context?: any;
+export interface LambdaRequestMeta {
+  event: LambdaEvent;
+  context: Context;
   requestId?: string;
   stage?: string;
   sourceIp?: string;
@@ -77,7 +77,7 @@ export interface Lambda {
   handleRequest(request: any): Promise<any>;
 }
 
-export interface ILRequest {
+export interface LambdaRequest {
   requestUrl: URL;
   method: HTTP_METHODS;
   path?: string;
@@ -95,7 +95,6 @@ export interface ILRequest {
   stage?: string;
   userAgent: string;
   sourceIp: string;
-
   end(): void;
 }
 

@@ -7,18 +7,82 @@ import { SanitizerConfig } from './sanitize';
 import { StaticConfig } from './static';
 
 export interface ServerConfig {
+  /**
+   * Port number the server listens on
+   * @type {number}
+   */
   port?: number;
+
+  /**
+   * Hostname or IP address
+   * @type {string}
+   */
   host?: string;
+
+  /**
+   * Array of middleware callback functions
+   * @type {MiddlewareCB[]}
+   */
   middlewares?: MiddlewareCB[];
+
+  /**
+   * Interceptor callback function
+   * @type {InterceptorCB}
+   */
   interceptor?: InterceptorCB;
+
+  /**
+   * Error handling callback
+   * @type {ErrorCB}
+   */
   errorHandler?: ErrorCB;
+
+  /**
+   * Array of controller types
+   * @type {ControllerType[]}
+   */
   controllers?: ControllerType[];
+
+  /**
+   * CORS configuration object
+   * @type {CORSConfig}
+   */
   cors?: CORSConfig;
+
+  /**
+   * Array of sanitizer configurations
+   * @type {SanitizerConfig[]}
+   */
   sanitizers?: SanitizerConfig[];
+
+  /**
+   * Array of static file serving configurations
+   * @type {StaticConfig[]}
+   */
   statics?: StaticConfig[];
+
+  /**
+   * WebSocket enablement and lazy loading
+   * @type {{ enabled: boolean; lazy?: boolean }}
+   */
   websocket?: { enabled: boolean; lazy?: boolean };
+
+  /**
+   * Server-Sent Events enablement
+   * @type {{ enabled: boolean }}
+   */
   sse?: { enabled: boolean };
+
+  /**
+   * Path for WebSocket connections
+   * @type {string}
+   */
   websocketPath?: string;
+
+  /**
+   * GraphQL configuration including playground, pubSub, and resolvers
+   * @type {{ playground?: boolean; pubSub?: PubSub; resolvers?: Function[] }}
+   */
   graphql?: {
     playground?: boolean;
     pubSub?: PubSub;

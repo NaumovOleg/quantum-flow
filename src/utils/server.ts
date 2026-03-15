@@ -2,6 +2,19 @@ import { CATCH, INTECEPT, SANITIZE, SERVER_CONFIG_KEY, USE_MIDDLEWARE } from '@c
 import { ServerConfig } from '@types';
 import http from 'http';
 
+/**
+ * Resolves the server configuration from a class or an object.
+ *
+ * @param configOrClass - Can be a class with decorators or a plain configuration object.
+ *
+ * @returns A complete ServerConfig object with defaults and merged properties.
+ *
+ * Behavior:
+ * - If a class is provided, extracts metadata from decorators to build the config.
+ * - If an object is provided, merges it with default values.
+ * - Defaults: port = 3000, host = 'localhost'.
+ * - Merges middleware, interceptors, errorHandler, cors, controllers, sanitizers from decorators or object.
+ */
 export const resolveConfig = (configOrClass?: any): ServerConfig => {
   let config: ServerConfig = {};
 

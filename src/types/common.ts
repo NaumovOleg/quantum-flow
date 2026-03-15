@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { IncomingMessage, ServerResponse } from 'http';
-import { LambdaRequest } from './lambda';
+import { LambdaRequestMeta } from './lambda';
 import { MultipartFile } from './multipart';
 
 export interface HttpError extends Error {
@@ -11,7 +11,7 @@ export interface HttpError extends Error {
   errors?: Array<{ message: string }>;
 }
 
-export type AppRequest = {
+type Request = {
   requestUrl: URL;
   method: HTTP_METHODS;
   path?: string;
@@ -25,7 +25,10 @@ export type AppRequest = {
   multipart?: Record<string, MultipartFile | MultipartFile[]>;
   _startTime: number;
   end: () => any;
-} & (IncomingMessage | LambdaRequest);
+};
+
+export type AppRequest = Request & (IncomingMessage | LambdaRequestMeta);
+export type HttpRequest = Request & IncomingMessage;
 
 export type Router = (
   req: AppRequest,

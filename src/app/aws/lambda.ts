@@ -91,20 +91,21 @@ export class LambdaAdapter extends Plugin implements ILambdaAdapter {
       return this.handleError(processed?.data, event, context);
     }
 
+    console.log(processed);
+
     return this.toLambdaResponse(processed?.data, request, response, eventType);
   }
 
   private toLambdaResponse(
-    data: any,
+    data: any | undefined | null,
     request: LRequest,
     response: LResponse,
     eventType: string,
   ): APIGatewayProxyResult | APIGatewayProxyResultV2 | any {
-    const statusCode = data.status ?? response.statusCode ?? 200;
+    const statusCode = data?.status ?? response?.statusCode ?? 200;
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'X-Request-Id': request.requestId,
-      ...(data.headers || {}),
       ...response.headers,
     };
 
@@ -129,14 +130,14 @@ export class LambdaAdapter extends Plugin implements ILambdaAdapter {
 
     const body = JSON.stringify({
       success: statusCode < 400,
-      data: data.data ?? data.error,
+      data: data?.data ?? data?.error ?? data,
       timestamp: new Date().toISOString(),
     });
 
     const commonResponse = {
       statusCode,
       headers,
-      body: data.data ?? data.error,
+      body: data?.data ?? data?.error ?? data,
       timestamp: new Date().toISOString(),
     };
 
@@ -162,21 +163,14 @@ export class LambdaAdapter extends Plugin implements ILambdaAdapter {
         };
 
       default:
-        return {
-          statusCode,
-          headers,
-          body,
-        };
+        return { statusCode, headers, body };
     }
   }
 
   private handleError(error: any, event: LambdaEvent, context: Context) {
     let serialized = serializeError(error);
-
     const eventType = getEventType(event);
-
     const statusCode = serialized.status || 500;
-
     const body = JSON.stringify({
       success: false,
       message: serialized.message || 'Internal Server Error',

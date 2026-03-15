@@ -1,8 +1,8 @@
-import { HTTP_METHODS, ILRequest, LambdaEvent, MultipartFile } from '@types';
+import { HTTP_METHODS, LambdaEvent, LambdaRequest, MultipartFile } from '@types';
 import { Context } from 'aws-lambda';
 import { getEventType, getSourceIp, normalizeEvent } from './helpers';
 
-export class LRequest implements ILRequest {
+export class LRequest implements LambdaRequest {
   requestUrl: URL;
   method: HTTP_METHODS;
   path?: string;
@@ -20,10 +20,15 @@ export class LRequest implements ILRequest {
   stage?: string;
   userAgent: string;
   sourceIp: string;
+  event: LambdaEvent;
+  context: Context;
 
   constructor(lambdaEvent: LambdaEvent, context: Context) {
     const event = normalizeEvent(lambdaEvent, getEventType(lambdaEvent));
     const query: Record<string, string | string[]> = {};
+
+    this.event = lambdaEvent;
+    this.context = context;
 
     if (event.multiValueQueryStringParameters) {
       Object.entries(event.multiValueQueryStringParameters).forEach(([key, value]) => {

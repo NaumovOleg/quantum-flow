@@ -272,9 +272,7 @@ export const getResponse = async (data: {
   }
 
   data.response.statusCode = appResponse.status ?? 200;
-
   const isError = !OK_STATUSES.includes(data.response.statusCode);
-
   const interceptors = data.interceptors.reverse();
 
   for (let index = 0; index < interceptors?.length && !isError; index++) {
