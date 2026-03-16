@@ -30,7 +30,7 @@ export const Params = (dto?: any, name?: string) =>
   createParamDecorator(
     'params',
     typeof dto == 'string' ? undefined : dto,
-    typeof dto == 'string' ? dto : name,
+    (name ?? typeof dto == 'string') ? dto : name,
   );
 
 /**

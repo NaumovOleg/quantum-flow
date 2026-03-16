@@ -86,9 +86,11 @@ export const executeControllerMethod = async (
         continue;
       }
 
-      let value = param.name
-        ? request[param.type as keyof AppRequest]?.[param.name]
-        : request[param.type as keyof AppRequest];
+      let value = request[param.type as keyof AppRequest];
+
+      // param.name
+      //   ? request[param.type as keyof AppRequest]?.[param.name]
+      //   : request[param.type as keyof AppRequest];
 
       if (param.type === 'multipart') {
         value = multipart;
@@ -110,8 +112,8 @@ export const executeControllerMethod = async (
       }
 
       if (TO_VALIDATE.includes(param.type)) {
-        const valueToValidate = typeof value === 'string' ? { [param.name ?? '']: value } : value;
-        value = await validate(param.dto, valueToValidate);
+        const validated = await validate(param.dto, value);
+        value = param.name ? validated?.[param.name] : validated;
       }
 
       args[i] = value;

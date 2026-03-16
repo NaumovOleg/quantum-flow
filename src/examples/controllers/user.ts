@@ -22,7 +22,7 @@ import { UserMetadata } from './userMetadata';
 class DTO {
   constructor() {}
   @IsString()
-  name: string;
+  id: string;
 }
 
 @Controller({
@@ -36,12 +36,12 @@ export class User {
   @Status(201)
   @PUT(':id')
   async createUser(
-    @Body(DTO) body: DTO,
+    @Body() body: DTO,
     @Query() query: any,
     @Headers() headers: any,
     @InjectWS() ws: IWebSocketService,
     @Request() req: any,
-    @Params() params: any,
+    @Params(DTO, 'id') params: any,
     @Response() resp: any,
   ) {
     return { body, query, headers, params };
