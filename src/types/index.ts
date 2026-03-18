@@ -7,6 +7,7 @@ export * from './lambda';
 export * from './multipart';
 export * from './plugins';
 export * from './sanitize';
+export * from './server';
 export * from './sse';
 export * from './static';
 export * from './websocket';

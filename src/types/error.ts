@@ -1,3 +1,7 @@
+import { ServerResponse } from 'http';
+import { AppRequest } from './common';
+import { LambdaResponse } from './lambda';
+
 export enum ErrorCode {
   BAD_REQUEST = 'BAD_REQUEST',
   UNAUTHORIZED = 'UNAUTHORIZED',
@@ -73,3 +77,9 @@ export interface ErrorHandlerConfig {
   logStack?: boolean;
   customHandlers?: Record<ErrorCode, (error: AppError) => any>;
 }
+
+export type ErorrHandler = (
+  error: Error,
+  req: AppRequest,
+  response: LambdaResponse | ServerResponse,
+) => any;

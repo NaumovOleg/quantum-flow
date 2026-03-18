@@ -16,7 +16,11 @@ import {
   AppRequest,
   ControllerClass,
   ControllerConfig,
+  ControllerMetadata,
+  CORSConfig,
+  ErorrHandler,
   InterceptorCB,
+  MiddlewareCB,
   ResponseWithStatus,
   RouteContext,
   SeeControllerHandlers,
@@ -90,6 +94,14 @@ export function Controller(
       sse?: SeeControllerHandlers;
       executeControllerMethod = executeControllerMethod;
       getControllerMethods = getControllerMethods;
+      routePrefix?: string;
+      middlewares: MiddlewareCB[] = [];
+      interceptor?: InterceptorCB;
+      subControllers: ControllerMetadata[] = [];
+      errorHandler?: ErorrHandler;
+      cors?: CORSConfig;
+      sanitizers?: SanitizerConfig[];
+
       constructor(...args: any[]) {
         super(...args);
         this.lookupWS();
@@ -97,30 +109,38 @@ export function Controller(
       }
 
       handleRequest = async (request: AppRequest, response: ServerResponse) => {
-        const middlewares = []
+        const middlewares = this.middlewares
           .concat(Reflect.getMetadata(MIDDLEWARES, proto))
           .concat(Reflect.getMetadata(USE_MIDDLEWARE, constructor))
           .filter((el) => !!el);
 
+        const routePrefix = this.routePrefix ?? Reflect.getMetadata(ROUTE_PREFIX, proto) ?? '/';
+        const interceptor = this.interceptor ?? Reflect.getMetadata(INTERCEPTOR, proto);
+        const subControllers =
+          this.subControllers.concat(Reflect.getMetadata(CONTROLLERS, proto)) ?? [];
+        const errorHandler = this.errorHandler ?? Reflect.getMetadata(CATCH, constructor);
+        const cors = this.cors ?? Reflect.getMetadata(CORS_METADATA, proto);
+        const sanitizers = this.sanitizers ?? Reflect.getMetadata(SANITIZE, proto) ?? [];
+
         const context: RouteContext = {
           controllerInstance: this,
           controllerMeta: {
-            routePrefix: Reflect.getMetadata(ROUTE_PREFIX, proto) || '',
+            routePrefix,
             middlewares,
-            interceptor: Reflect.getMetadata(INTERCEPTOR, proto),
-            subControllers: Reflect.getMetadata(CONTROLLERS, proto) || [],
-            errorHandler: Reflect.getMetadata(CATCH, constructor),
-            cors: Reflect.getMetadata(CORS_METADATA, proto),
-            sanitizers: Reflect.getMetadata(SANITIZE, proto) || [],
+            interceptor,
+            subControllers,
+            errorHandler,
+            cors,
+            sanitizers,
           },
           path: (request.requestUrl.pathname ?? '').replace(/^\/+/g, ''),
           method: request.method.toUpperCase(),
           middlewareChain: [],
           interceptorChain: [],
           sanitizersChain: [],
-          corsChain: [Reflect.getMetadata(CORS_METADATA, proto)],
-          errorHandlerChain: [Reflect.getMetadata(CATCH, proto)],
-          subPath: Reflect.getMetadata(ROUTE_PREFIX, proto) || '',
+          corsChain: cors,
+          errorHandlerChain: [errorHandler],
+          subPath: routePrefix,
         };
 
         return this.routeWalker(context, request, response);
