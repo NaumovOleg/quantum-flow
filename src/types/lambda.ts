@@ -1,4 +1,12 @@
-import { APIGatewayProxyEvent, APIGatewayProxyEventV2, Context, Handler } from 'aws-lambda';
+import {
+  ALBEvent,
+  APIGatewayProxyEvent,
+  APIGatewayProxyEventV2,
+  CloudFrontRequestEvent,
+  Context,
+  Handler,
+  LambdaFunctionURLEvent,
+} from 'aws-lambda';
 import { HTTP_METHODS } from './common';
 import { ControllerClass } from './controller';
 import { MultipartFile } from './multipart';
@@ -34,6 +42,9 @@ export interface LambdaFunctionUrlEvent {
 }
 
 export type LambdaEvent =
+  | ALBEvent
+  | LambdaFunctionURLEvent
+  | CloudFrontRequestEvent
   | APIGatewayProxyEvent // REST API (v1)
   | APIGatewayProxyEventV2 // HTTP API (v2)
   | LambdaFunctionUrlEvent; // Lambda Function URL

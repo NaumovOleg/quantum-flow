@@ -1,7 +1,17 @@
 import { APIGatewayProxyEvent, Context } from 'aws-lambda';
 import { IncomingHttpHeaders } from 'http';
-import { LambdaEvent } from './lambda';
 export type RequestSource = 'http' | 'lambda' | 'unknown';
+
+export type EventType =
+  | 'apigateway' // REST API v1
+  | 'apigatewayv2' // HTTP API v2
+  | 'alb' // Application Load Balancer
+  | 'cloudfront' // CloudFront
+  | 's3' // S3 Event
+  | 'sns' // SNS Event
+  | 'sqs' // SQS Event
+  | 'dynamodb' // DynamoDB Stream
+  | 'unknown';
 
 export interface RequestOptions {
   method: string;
@@ -21,8 +31,9 @@ export interface RequestOptions {
   raw?: any;
   context?: any;
   rawBody?: any;
-  event?: LambdaEvent;
+  event?: unknown;
   isBase64Encoded?: boolean;
+  source: RequestSource;
 }
 
 export interface IRequest {

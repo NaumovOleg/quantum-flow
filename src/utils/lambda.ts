@@ -1,5 +1,5 @@
 import { NormalizedEvent } from '@types';
-
+import { ALBEvent, APIGatewayProxyEvent, APIGatewayProxyEventV2 } from 'aws-lambda';
 export const getEventType = (event: any): 'rest' | 'http' | 'url' => {
   if (event.httpMethod && event.resource) {
     return 'rest';
@@ -31,4 +31,25 @@ export const getSourceIp = (event: NormalizedEvent): string => {
   }
 
   return '0.0.0.0';
+};
+
+export const getQueryStringParameters = (
+  event: APIGatewayProxyEvent | APIGatewayProxyEventV2 | ALBEvent,
+) => {
+  const query: Record<string, string> = {};
+  Object.entries(event.queryStringParameters ?? {}).forEach(([key, value]) => {
+    query[key] = (value as string) || '';
+  });
+
+  return query;
+};
+
+export const getMultiValueQueryStringParameters = (event: APIGatewayProxyEvent | ALBEvent) => {
+  const query: Record<string, string[]> = {};
+
+  Object.entries(event.multiValueQueryStringParameters ?? {}).forEach(([key, value]) => {
+    query[key] = value as string[];
+  });
+
+  return query;
 };

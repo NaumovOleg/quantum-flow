@@ -28,7 +28,7 @@ export class Request implements IRequest {
 
   private _state: Map<string, any> = new Map();
 
-  constructor(options: RequestOptions & { source: RequestSource }) {
+  constructor(options: RequestOptions) {
     this.method = options.method.toUpperCase();
     this.path = options.path;
     this.url = options.path;

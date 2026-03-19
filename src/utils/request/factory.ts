@@ -1,13 +1,12 @@
 // core/RequestFactory.ts
-import { Context } from 'aws-lambda';
-
 import { LambdaEvent } from '@types';
+import { Context } from 'aws-lambda';
 import { IncomingMessage } from 'http';
 import { v4 } from 'uuid';
-import { getEventType, getSourceIp } from '../lambda';
-import { normalizeLambdaEvent, parceBody } from '../parsers';
+import { normalizeEvent } from '../lambda.event.normalizers';
+import { parseBody, parseRequestCookie } from '../parsers';
 import { collectRawBody } from '../server';
-import { parseQuesry, parseRequestCookie } from './helpers';
+import { parseQuesry } from './helpers';
 import { Request } from './request';
 
 export class RequestFactory {
@@ -19,7 +18,7 @@ export class RequestFactory {
     const host = req.headers.host || 'localhost';
     const fullUrl = `${protocol}://${host}${req.url}`;
     const requestUrl = new URL(fullUrl);
-    const cookies = parseRequestCookie('http', req.headers?.cookie);
+    const cookies = parseRequestCookie(req.headers?.cookie);
     const query = parseQuesry(requestUrl);
 
     const forwardedFor = req.headers['x-forwarded-for'] as string;
@@ -31,9 +30,9 @@ export class RequestFactory {
 
     const rawBody = await collectRawBody(req);
 
-    const body = parceBody({
+    const body = parseBody({
       body: rawBody,
-      headers: req.headers,
+      headers: req.headers as Record<string, string | string[]>,
       isBase64Encoded: false,
     });
 
@@ -62,71 +61,10 @@ export class RequestFactory {
     });
   }
 
-  /**
-   * Create Request from Lambda event
-   */
-  static fromLambda(event: LambdaEvent, context: Context) {
-    const normalized = normalizeLambdaEvent(event, getEventType(event));
-    const query: Record<string, string | string[]> = {};
-
-    if (normalized.multiValueQueryStringParameters) {
-      Object.entries(normalized.multiValueQueryStringParameters).forEach(([key, value]) => {
-        query[key] = value;
-      });
-    } else {
-      Object.entries(normalized.queryStringParameters).forEach(([key, value]) => {
-        query[key] = value;
-      });
-    }
-    const cookieHeader = event.headers?.Cookie || event.headers?.cookie || event.headers?.cookies;
-    const cookies = parseRequestCookie('lambda', cookieHeader);
-
-    let rawBody = Buffer.from(event.body ?? '', 'base64');
-
-    const body = parceBody({
-      body: rawBody,
-      headers: event.headers,
-      isBase64Encoded: event.isBase64Encoded,
-    });
-
-    const xForvarded = Array.isArray(event.headers['x-forwarded-proto'])
-      ? event.headers['x-forwarded-proto']?.[0]
-      : event.headers['x-forwarded-proto'];
-
-    const xhost = Array.isArray(event.headers['host'])
-      ? event.headers['host']?.[0]
-      : event.headers['host'];
-
-    let userAgent =
-      typeof event.headers['user-agent'] === 'string'
-        ? event.headers['user-agent']
-        : event.headers['user-agent']?.[0] || 'unknown';
-
-    const protocol = xForvarded || 'https';
-    const host = xhost || 'localhost:3000';
-    const fullUrl = `${protocol}://${host}${normalized.path}`;
-    const requestUrl = new URL(fullUrl);
-    return new Request({
-      source: 'lambda',
-      requestUrl,
-      url: normalized.path,
-      method: normalized.httpMethod,
-      path: normalized.path,
-      headers: normalized.headers || {},
-      query,
-      body,
-      params: normalized.pathParameters,
-      cookies,
-      sourceIp: getSourceIp(normalized),
-      userAgent,
-      requestId: context.awsRequestId,
-      stage: normalized.requestContext?.stage || '$default',
-      timestamp: new Date(),
-      raw: event,
-      context,
-      rawBody,
-      isBase64Encoded: !!event.isBase64Encoded,
-    });
+  static fromLambda(event: LambdaEvent, context: Context): Request {
+    // Detect event type
+    const normalized = normalizeEvent(event, context);
+    return new Request(normalized);
   }
 
   /**

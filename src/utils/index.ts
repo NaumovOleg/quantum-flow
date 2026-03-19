@@ -5,6 +5,7 @@ export * from './error';
 export * from './headers';
 export * from './helper';
 export * from './lambda';
+export * from './lambda.event.normalizers';
 export * from './multipart';
 export * from './parsers';
 export * from './request';

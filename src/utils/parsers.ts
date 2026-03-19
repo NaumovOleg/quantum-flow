@@ -1,6 +1,7 @@
 import { NormalizedEvent } from '@types';
-import http from 'http';
-export const ParseQuery = (url: URL) => {
+import { CloudFrontHeaders } from 'aws-lambda';
+
+export const parseQuery = (url: URL) => {
   const params = url.searchParams;
   const query: Record<string, string | string[]> = {};
 
@@ -13,7 +14,11 @@ export const ParseQuery = (url: URL) => {
   return query;
 };
 
-export const parceBody = (request: any): any => {
+export const parseBody = (request: {
+  body: unknown;
+  headers: Record<string, string | string[]>;
+  isBase64Encoded?: boolean;
+}): any => {
   if (request.body && typeof request.body === 'object' && !Buffer.isBuffer(request.body)) {
     return request.body;
   }
@@ -101,22 +106,6 @@ export const parceBody = (request: any): any => {
   return processedBody;
 };
 
-export const ParseCookies = (req: http.IncomingMessage): Record<string, string> => {
-  const cookieHeader = req.headers.cookie;
-  if (!cookieHeader) return {};
-
-  return cookieHeader.split(';').reduce(
-    (cookies, cookie) => {
-      const [name, value] = cookie.trim().split('=');
-      if (name && value) {
-        cookies[name] = decodeURIComponent(value);
-      }
-      return cookies;
-    },
-    {} as Record<string, string>,
-  );
-};
-
 const parseLambdaQueryString = (queryString: string): Record<string, string> => {
   const params: Record<string, string> = {};
   if (!queryString) return params;
@@ -171,4 +160,66 @@ export const normalizeLambdaEvent = (event: any, type: string): NormalizedEvent 
     default:
       throw new Error(`Unsupported event type: ${type}`);
   }
+};
+
+const parseCookie = (cookies: string) => {
+  return (cookies as string).split(';').reduce(
+    (acc, cookie) => {
+      const [name, value] = cookie.trim().split('=');
+      if (name && value) {
+        acc[name] = decodeURIComponent(value);
+      }
+      return acc;
+    },
+    {} as Record<string, string>,
+  );
+};
+
+export const parseRequestCookie = (cookies?: string | string[]): Record<string, string> => {
+  if (!cookies) return {};
+
+  const values = Array.isArray(cookies) ? cookies : [cookies];
+  return values.reduce((acc, cookie) => {
+    return {
+      ...acc,
+      ...parseCookie(cookie),
+    };
+  }, {});
+};
+
+export const parseCloudFrontHeaders = (
+  headers?: CloudFrontHeaders,
+): Record<string, string | string[]> => {
+  const result: Record<string, string | string[]> = {};
+
+  if (!headers) return result;
+
+  Object.entries(headers).forEach(([key, values]) => {
+    if (values.length > 1) {
+      result[key] = values.map((v) => v.value);
+    } else {
+      result[key] = values[0]?.value || '';
+    }
+  });
+
+  return result;
+};
+
+/**
+ * Safely convert headers to Record<string, string | string[]>
+ */
+export const parseHeaders = (
+  headers?: Record<string, string | undefined>,
+): Record<string, string | string[]> => {
+  const result: Record<string, string | string[]> = {};
+
+  if (!headers) return result;
+
+  Object.entries(headers).forEach(([key, value]) => {
+    if (value !== undefined) {
+      result[key] = value;
+    }
+  });
+
+  return result;
 };

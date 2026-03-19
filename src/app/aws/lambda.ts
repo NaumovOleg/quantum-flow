@@ -35,7 +35,6 @@ export class LambdaAdapter extends Plugin implements ILambdaAdapter {
 
       const eventType = getEventType(event);
       const request = RequestFactory.fromLambda(event, context);
-
       const response = ResponseFactory.forLambda(request);
 
       return this.runControllers({
