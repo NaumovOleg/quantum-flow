@@ -16,6 +16,7 @@ ln -sf ../../../utils/core src/core/src/utils/core
 ln -sf ../../../utils/shared src/core/src/utils/shared
 ln -sf ../../../utils/sse src/core/src/utils/sse
 ln -sf ../../../utils/socket src/core/src/utils/socket
+ln -sf ../../README.md src/core
 
 echo -e "\n${YELLOW}Creating symlinks for http module...${NC}"
 mkdir src/http/src/types
@@ -29,6 +30,7 @@ ln -sf ../../../utils/http src/http/src/utils/http
 ln -sf ../../../utils/sse src/http/src/utils/sse
 ln -sf ../../../utils/shared src/http/src/utils/shared
 ln -sf ../../../utils/socket src/http/src/utils/socket
+ln -sf ../../README.md src/http
 
 echo -e "\n${YELLOW}Creating symlinks for middlewares module...${NC}"
 mkdir src/middlewares/src/types
@@ -38,6 +40,7 @@ ln -sf ../../../types/core src/middlewares/src/types/core
 ln -sf ../../../types/ws src/middlewares/src/types/ws
 ln -sf ../../../utils/shared src/middlewares/src/utils/shared
 ln -sf ../../../utils/sse src/middlewares/src/utils/sse
+ln -sf ../../README.md src/middlewares
 
 echo -e "\n${YELLOW}Creating symlinks for aws module...${NC}"
 mkdir src/aws/src/types
@@ -51,7 +54,7 @@ ln -sf ../../../utils/core src/aws/src/utils/core
 ln -sf ../../../utils/aws src/aws/src/utils/aws
 ln -sf ../../../utils/sse src/aws/src/utils/sse
 ln -sf ../../../utils/socket src/aws/src/utils/socket
-
+ln -sf ../../README.md src/aws
 
 
 # Показываем результат
