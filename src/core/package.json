@@ -1,12 +1,25 @@
 {
-  "name": "@quantum-flow/core",
-  "version": "1.0.0",
+  "name": "@heliosjs/core",
+  "version": "1.0.1",
   "description": "Core functionality for Quantum Flow",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist/*",
+    "README.md"
+  ],
   "scripts": {
-    "build": "tsc",
-    "clean": "rm -rf dist"
+    "build": "yarn clean && tsc -p tsconfig.build.json && resolve-tspaths",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "yarn build",
+    "publish:public": "yarn publish --access public",
+    "publish:patch": "yarn version --patch && yarn publish --access public",
+    "publish:minor": "yarn version --minor && yarn publish --access public",
+    "publish:major": "yarn version --major && yarn publish --access public"
   },
   "dependencies": {
     "class-transformer": "^0.5.1",
@@ -15,8 +28,8 @@
     "parse-multipart-data": "^1.5.0",
     "reflect-metadata": "^0.2.2",
     "tsconfig-paths": "^4.2.0",
-    "ws": "^8.19.0",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "ws": "^8.19.0"
   },
   "peerDependencies": {
     "typescript": ">=4.0.0"
