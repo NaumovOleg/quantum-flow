@@ -1,6 +1,6 @@
 {
   "name": "@heliosjs/middlewares",
-  "version": "1.3.0",
+  "version": "1.0.0",
   "description": "Core functionality for Quantum Flow",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -16,10 +16,10 @@
     "build": "yarn clean && tsc -p tsconfig.build.json && resolve-tspaths",
     "clean": "rm -rf dist",
     "prepublishOnly": "yarn build",
-    "publish:public": "yarn publish --access public",
-    "publish:patch": "yarn version --patch && yarn build && npm pack && npm publish *.tgz --access public && rm *.tgz",
-    "publish:minor": "yarn version --minor && yarn publish --access public",
-    "publish:major": "yarn version --major && yarn publish --access public"
+    "publish:public": "yarn publish --access public --no-git-tag-version",
+    "publish:patch": "yarn version --patch --no-git-tag-version && yarn publish --access public",
+    "publish:minor": "yarn version --minor --no-git-tag-version && yarn publish --access public",
+    "publish:major": "yarn version --major --no-git-tag-version && yarn publish --access public"
   },
   "dependencies": {
     "reflect-metadata": "^0.2.2"

@@ -1,6 +1,6 @@
 {
   "name": "@heliosjs/aws",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Core functionality for Quantum Flow",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -13,12 +13,13 @@
     "README.md"
   ],
   "scripts": {
+    "build": "yarn clean && tsc -p tsconfig.build.json && resolve-tspaths",
     "clean": "rm -rf dist",
-    "publish:public": "yarn publish --access public",
-    "publish:patch": "yarn version --patch && yarn publish --access public",
-    "publish:minor": "yarn version --minor && yarn publish --access public",
-    "publish:major": "yarn version --major && yarn publish --access public",
-    "build": "yarn clean && tsc -p tsconfig.build.json && resolve-tspaths"
+    "prepublishOnly": "yarn build",
+    "publish:public": "yarn publish --access public --no-git-tag-version",
+    "publish:patch": "yarn version --patch --no-git-tag-version && yarn publish --access public",
+    "publish:minor": "yarn version --minor --no-git-tag-version && yarn publish --access public",
+    "publish:major": "yarn version --major --no-git-tag-version && yarn publish --access public"
   },
   "dependencies": {
     "aws-lambda": "^1.0.7"

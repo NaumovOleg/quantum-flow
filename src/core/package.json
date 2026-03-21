@@ -16,10 +16,10 @@
     "build": "yarn clean && tsc -p tsconfig.build.json && resolve-tspaths",
     "clean": "rm -rf dist",
     "prepublishOnly": "yarn build",
-    "publish:public": "yarn publish --access public",
-    "publish:patch": "yarn version --patch && yarn publish --access public",
-    "publish:minor": "yarn version --minor && yarn publish --access public",
-    "publish:major": "yarn version --major && yarn publish --access public"
+    "publish:public": "yarn publish --access public --no-git-tag-version",
+    "publish:patch": "yarn version --patch --no-git-tag-version && yarn publish --access public",
+    "publish:minor": "yarn version --minor --no-git-tag-version && yarn publish --access public",
+    "publish:major": "yarn version --major --no-git-tag-version && yarn publish --access public"
   },
   "dependencies": {
     "class-transformer": "^0.5.1",
